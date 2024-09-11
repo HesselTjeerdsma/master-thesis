@@ -15,6 +15,3 @@ async def process_hatespeech_detection(msg: KafkaMessage):
 @broker.subscriber("fakenews-detection")
 async def process_fakenews_detection(msg: KafkaMessage):
     print(f"Fake News Detection: {msg.content}")
-
-if __name__ == "__main__":
-    app.run()
