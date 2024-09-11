@@ -34,5 +34,25 @@ services:
         kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic fraud-detection
         kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic hatespeech-detection
         kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic fakenews-detection
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic mysql-data
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:9092 --partitions 1 --replication-factor 1 --topic processed-data
         echo Kafka topics created.
       "
+
+  kafka-consumer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python src/kafka_consumer.py
+    depends_on:
+      - kafka
+      - kafka-topics-creator
+
+  kafka-streams-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python src/kafka_streams_processor.py
+    depends_on:
+      - kafka
+      - kafka-topics-creator
