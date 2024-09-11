@@ -4,7 +4,17 @@ from faststream import FastStream
 broker = KafkaBroker("localhost:29092")
 app = FastStream(broker)
 
+@broker.subscriber("fraud-detection")
+async def process_fraud_detection(msg: KafkaMessage):
+    print(f"Fraud Detection: {msg.content}")
 
-@broker.subscriber("test-topic")
-async def process_message(msg: KafkaMessage):
-    print(f"Received message: {msg.content}")
+@broker.subscriber("hatespeech-detection")
+async def process_hatespeech_detection(msg: KafkaMessage):
+    print(f"Hate Speech Detection: {msg.content}")
+
+@broker.subscriber("fakenews-detection")
+async def process_fakenews_detection(msg: KafkaMessage):
+    print(f"Fake News Detection: {msg.content}")
+
+if __name__ == "__main__":
+    app.run()
