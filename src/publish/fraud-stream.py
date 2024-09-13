@@ -9,6 +9,7 @@ def publish_messages(csv_file, topic_name, bootstrap_servers, messages_per_secon
     # Create Kafka producer
     producer = KafkaProducer(
         bootstrap_servers=bootstrap_servers,
+        key_serializer=str.encode,
         value_serializer=lambda v: json.dumps(v).encode("utf-8"),
     )
 
@@ -17,11 +18,14 @@ def publish_messages(csv_file, topic_name, bootstrap_servers, messages_per_secon
         csv_reader = csv.DictReader(file)
 
         for row in csv_reader:
+            # Extract credit card number to use as key
+            cc_num = row.get("cc_num", "")
+
             # Convert row to JSON
             message = json.dumps(row)
 
-            # Send message to Kafka topic
-            producer.send(topic_name, value=row)
+            # Send message to Kafka topic with cc_num as key
+            producer.send(topic_name, key=cc_num, value=row)
 
             # Print message for debugging
             print(f"Published: {message}")
