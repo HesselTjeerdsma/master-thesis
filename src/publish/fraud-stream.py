@@ -1,15 +1,26 @@
 import csv
 from kafka import KafkaProducer
+from kafka.errors import KafkaError
 import json
 import time
 import argparse
-
 import sys
 
 sys.path.append("../")
 
 from pydantic import ValidationError
 from models.transaction import TransactionModel
+
+
+def check_kafka_connection(bootstrap_servers):
+    try:
+        producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
+        producer.close()
+        print("Successfully connected to Kafka")
+        return True
+    except KafkaError as e:
+        print(f"Failed to connect to Kafka: {e}")
+        return False
 
 
 def publish_messages(csv_file, topic_name, bootstrap_servers, messages_per_second):
@@ -53,6 +64,7 @@ def publish_messages(csv_file, topic_name, bootstrap_servers, messages_per_secon
 
 
 if __name__ == "__main__":
+
     # Set up command-line argument parsing
     parser = argparse.ArgumentParser(
         description="Publish CSV data to Kafka topic with controllable rate."
@@ -63,8 +75,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--bootstrap-servers",
-        default="localhost:29092",
-        help="Kafka bootstrap servers (default: localhost:29092)",
+        default="localhost:19092",
+        help="Kafka bootstrap servers (default: localhost:19092)",
     )
     parser.add_argument(
         "--rate",
@@ -74,6 +86,10 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+
+    if not check_kafka_connection(args.bootstrap_servers):
+        print("Exiting due to Kafka connection failure")
+        exit
 
     # Call the publish_messages function with parsed arguments
     publish_messages(
