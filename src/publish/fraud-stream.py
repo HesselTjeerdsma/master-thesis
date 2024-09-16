@@ -4,13 +4,20 @@ import json
 import time
 import argparse
 
+import sys
+
+sys.path.append("../")
+
+from pydantic import ValidationError
+from models.transaction import TransactionModel
+
 
 def publish_messages(csv_file, topic_name, bootstrap_servers, messages_per_second):
     # Create Kafka producer
     producer = KafkaProducer(
         bootstrap_servers=bootstrap_servers,
         key_serializer=str.encode,
-        value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+        value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),
     )
 
     # Read CSV file
@@ -18,20 +25,28 @@ def publish_messages(csv_file, topic_name, bootstrap_servers, messages_per_secon
         csv_reader = csv.DictReader(file)
 
         for row in csv_reader:
-            # Extract credit card number to use as key
-            cc_num = row.get("cc_num", "")
+            try:
+                # Validate and create TransactionModel instance
+                transaction = TransactionModel(**row)
 
-            # Convert row to JSON
-            message = json.dumps(row)
+                # Extract credit card number to use as key
+                cc_num = transaction.cc_num
 
-            # Send message to Kafka topic with cc_num as key
-            producer.send(topic_name, key=cc_num, value=row)
+                # Convert validated model to dict
+                message = transaction.dict(by_alias=True)
 
-            # Print message for debugging
-            print(f"Published: {message}")
+                # Send message to Kafka topic with cc_num as key
+                producer.send(topic_name, key=cc_num, value=message)
 
-            # Control publish rate
-            time.sleep(1 / messages_per_second)
+                # Print message for debugging
+                print(f"Published: {json.dumps(message, default=str)}")
+
+                # Control publish rate
+                time.sleep(1 / messages_per_second)
+
+            except ValidationError as e:
+                print(f"Validation error: {e}")
+                continue
 
     # Ensure all messages are sent
     producer.flush()
