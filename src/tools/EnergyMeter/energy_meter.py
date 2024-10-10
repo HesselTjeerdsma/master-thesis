@@ -266,14 +266,14 @@ class EnergyMeter:
         :returns: the total jules used by the CPU between meter.begin() and meter.end().
         """
         # pyRAPL returns the microjules, so we convert them to jules.
-        return np.array(self.meter.result.pkg) * 1e-6
+        return np.array(self.meter.result.pkg or 0) * 1e-6
 
     def get_total_jules_dram(self):
         """We obtain the total jules consumed by the DRAM from pyRAPL.
         :returns: the total jules used by the DRAM between meter.begin() and meter.end().
         """
         # pyRAPL returns the microjules, so we convert them to jules.
-        return np.array(self.meter.result.dram) * 1e-6
+        return np.array(self.meter.result.dram or 0) * 1e-6
 
     def get_total_jules_gpu(self):
         """We calculate the GPU's energy consumption while the meter was running. For this,
