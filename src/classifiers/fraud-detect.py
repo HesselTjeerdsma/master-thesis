@@ -1,5 +1,4 @@
-from langchain_community.llms import OpenAI
-from langchain_anthropic import ChatAnthropic
+from langchain_community.llms import LlamaCpp
 from langchain_core.prompts import PromptTemplate
 from langchain.output_parsers import StructuredOutputParser, ResponseSchema
 from langchain.chains import LLMChain
@@ -10,10 +9,20 @@ import sys
 sys.path.append("../")
 from models.transaction import TransactionModel
 
-
 def detect_fraud(transaction: TransactionModel) -> dict:
-    # Initialize the OpenAI language model
-    llm = ChatAnthropic(model="claude-3-opus-20240229")
+    # Initialize the LocalLlama language model with GGUF file
+    llm = LlamaCpp(
+        model_path="/media/hessel/Media/lm-studio/bartowski/Phi-3.5-mini-instruct-GGUF/Phi-3.5-mini-instruct-Q8_0.gguf",
+        temperature=0.1,
+        max_tokens=2000,
+        n_ctx=2048,
+        n_batch=512,  # Increased for better GPU utilization
+        n_gpu_layers=-1,  # Use all available GPU layers
+        f16_kv=True,
+        verbose=True,  # Set to False in production
+        use_mlock=False,
+        use_mmap=True
+    )
 
     # Define the response schemas
     response_schemas = [
@@ -72,7 +81,6 @@ def detect_fraud(transaction: TransactionModel) -> dict:
 
     return parsed_result
 
-
 # Create a test transaction
 test_transaction = TransactionModel(
     trans_date_trans_time=datetime.now(),
@@ -96,9 +104,9 @@ test_transaction = TransactionModel(
     unix_time=int(datetime.now().timestamp()),
     merch_lat=34.0522,
     merch_long=-118.2437,
-    is_fraud=False,  # We set this to False, but our function should analyze if it's potentially fraudulent
+    is_fraud=False,  # We set this to False, but our function sho
 )
 
-
-# result = detect_fraud(test_transaction)
-# print(result)
+# Uncomment the following lines to run the fraud detection
+result = detect_fraud(test_transaction)
+print(result)
