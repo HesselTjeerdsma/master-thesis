@@ -7,9 +7,9 @@ from decimal import Decimal
 import sys
 import json
 import pprint
-
 sys.path.append("../")
 from models.transaction import TransactionModel
+from tools.EnergyMeter.energy_meter import EnergyMeter
 
 def detect_fraud(transaction: TransactionModel) -> dict:
     llm = LlamaCpp(
@@ -76,6 +76,12 @@ def detect_fraud(transaction: TransactionModel) -> dict:
             "recommended_actions": ["Review transaction manually"]
         }
 
+meter = EnergyMeter(disk_avg_speed=1600*1e6, 
+                            disk_active_power=6, 
+                            disk_idle_power=1.42, 
+                            label="Matrix Multiplication", include_idle=False)
+meter.begin()
+
 # Create a test transaction
 test_transaction = TransactionModel(
     trans_date_trans_time=datetime.now(),
@@ -102,7 +108,12 @@ test_transaction = TransactionModel(
     is_fraud=False,
 )
 
+
+
 # Run the fraud detection
 result = detect_fraud(test_transaction)
 print(json.dumps(result, indent=2))
 pprint.pprint(result)
+
+meter.end()
+meter.plot_total_jules_per_component()
