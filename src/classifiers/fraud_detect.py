@@ -7,34 +7,33 @@ from decimal import Decimal
 import sys
 import json
 import pprint
+
 sys.path.append("../")
 from models.transaction import TransactionModel
 
-def detect_fraud(transaction: TransactionModel) -> dict:
-    llm = LlamaCpp(
-        model_path="/media/hessel/Media/lm-studio/bartowski/Phi-3.5-mini-instruct-GGUF/Phi-3.5-mini-instruct-Q8_0.gguf",
-        temperature=0.1,
-        max_tokens=2000,
-        n_ctx=2048,
-        n_batch=512,
-        n_gpu_layers=-1,
-        f16_kv=True,
-        verbose=True,
-        use_mlock=False,
-        use_mmap=True
-    )
+
+def detect_fraud(transaction: TransactionModel, llm) -> dict:
 
     response_schemas = [
-        ResponseSchema(name="fraud_risk", description="The level of fraud risk (Low/Medium/High)"),
-        ResponseSchema(name="reasons", description="Reasons for the fraud risk assessment"),
-        ResponseSchema(name="recommended_actions", description="Recommended actions based on the assessment"),
+        ResponseSchema(
+            name="fraud_risk", description="The level of fraud risk (Low/Medium/High)"
+        ),
+        ResponseSchema(
+            name="reasons", description="Reasons for the fraud risk assessment"
+        ),
+        ResponseSchema(
+            name="recommended_actions",
+            description="Recommended actions based on the assessment",
+        ),
     ]
 
     output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
 
     prompt = PromptTemplate(
         input_variables=["transaction_details"],
-        partial_variables={"format_instructions": output_parser.get_format_instructions()},
+        partial_variables={
+            "format_instructions": output_parser.get_format_instructions()
+        },
         template="""
         Analyze the following transaction details and determine if there's a potential for fraud. 
         Consider factors such as transaction amount, location, merchant details, and any unusual patterns.
@@ -62,7 +61,7 @@ def detect_fraud(transaction: TransactionModel) -> dict:
     try:
         result = chain.run(transaction_details=transaction_details)
         parsed_result = output_parser.parse(result)
-        
+
         # Ensure the parsed result is JSON serializable
         json_result = json.loads(json.dumps(parsed_result))
         return json_result
@@ -72,5 +71,5 @@ def detect_fraud(transaction: TransactionModel) -> dict:
             "error": str(e),
             "fraud_risk": "Unknown",
             "reasons": ["Error occurred during analysis"],
-            "recommended_actions": ["Review transaction manually"]
+            "recommended_actions": ["Review transaction manually"],
         }
