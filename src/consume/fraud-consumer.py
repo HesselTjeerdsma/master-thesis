@@ -17,6 +17,7 @@ sys.path.append("../")
 # Import custom modules and classes
 from models.transaction import TransactionModel
 from models.message import Message
+from models.run import Run
 from classifiers.fraud_detect import detect_fraud
 
 # EnergyMeter is a custom implementation part of a specific library for measuring energy consumption
@@ -53,6 +54,8 @@ llm = LlamaCpp(
 def setup(logger: Logger, context: ContextRepo):
     logger.info("Creating Message DBs")
     Message.initialize_db("../../databases/fraud.db")
+    logger.info("Creating Message DBs")
+    Run.initialize_db("../../databases/fraud.db")
 
 
 # Custom JSON decoder to handle datetime, date, and Decimal types

@@ -1,54 +1,72 @@
-# Example usage with the Message model
-from typing import ClassVar, Optional, Dict
+from typing import Optional, Dict
 from .duck_basemodel import DuckDBModel
-import numpy as np
 
 
 class Message(DuckDBModel):
-    run_id: str
-    message_id: str
+    run_id: int
+    id: Optional[int] = None
     cpu_usage: float
     gpu_usage: Optional[float] = None
     disk_usage: float
-
-    _table_name: ClassVar[str] = "messages"
-
-    @classmethod
-    def from_row(cls, row: tuple) -> "Message":
-        return cls(
-            **dict(
-                zip(
-                    ["run_id", "message_id", "cpu_usage", "gpu_usage", "disk_usage"],
-                    row,
-                )
-            )
-        )
+    prompt: str
+    response: str
 
     @classmethod
-    def from_dict(cls, data: Dict[str, any], run_id: str, message_id: str) -> "Message":
+    def create_llm_message(
+        cls,
+        run_id: int,
+        prompt: str,
+        response: str,
+        power_usage: Dict[str, float],
+    ) -> "Message":
         """
-        Create a Message instance from a dictionary of resource usage data.
+        Create a new message record for an LLM interaction with power usage metrics.
 
         Args:
-            data (Dict[str, any]): Dictionary containing resource usage data.
-            run_id (str): The run ID for this message.
-            message_id (str): The message ID for this instance.
+            run_id: ID of the associated run
+            prompt: Input prompt sent to the LLM
+            response: Response received from the LLM
+            power_usage: Dictionary containing power usage metrics
+                Expected format:
+                {
+                    'cpu': float,     # CPU power usage
+                    'dram': float,    # DRAM power usage
+                    'gpu': float,     # GPU power usage
+                    'disk': float     # Disk power usage
+                }
 
         Returns:
-            Message: A new Message instance.
+            Message: A new Message instance that has been saved to the database
+
+        Example:
+            power_data = {
+                'cpu': 241.306999,
+                'dram': 0.0,
+                'gpu': 1189.9352091659741,
+                'disk': 0.00031072875
+            }
+
+            message = Message.create_llm_message(
+                run_id=1,
+                prompt="What is the capital of France?",
+                response="The capital of France is Paris.",
+                power_usage=power_data
+            )
         """
-        return cls(
+        # Extract CPU power usage (takes first value if it's an array)
+        cpu_usage = power_usage["cpu"]
+        if hasattr(cpu_usage, "__iter__"):
+            cpu_usage = cpu_usage[0]
+
+        # Create the message instance
+        message = cls(
             run_id=run_id,
-            message_id=message_id,
-            cpu_usage=float(np.mean(data["cpu"])),  # Taking mean if it's an array
-            gpu_usage=float(data["gpu"]) if "gpu" in data else None,
-            disk_usage=float(data["disk"]),
+            prompt=prompt,
+            response=response,
+            cpu_usage=cpu_usage,
+            gpu_usage=power_usage["gpu"],
+            disk_usage=power_usage["disk"],
         )
 
-    def total_resource_usage(self) -> float:
-        """Calculate the total resource usage."""
-        return self.cpu_usage + (self.gpu_usage or 0) + self.disk_usage
-
-    def is_gpu_active(self) -> bool:
-        """Check if GPU is being used."""
-        return self.gpu_usage is not None and self.gpu_usage > 0
+        message.save()
+        return message
