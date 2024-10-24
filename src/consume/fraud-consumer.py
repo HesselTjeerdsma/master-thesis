@@ -1,5 +1,5 @@
 # Import necessary modules and classes
-from faststream import FastStream, Logger, ContextRepo
+from faststream import FastStream, Logger, ContextRepo, Context
 from faststream.confluent import KafkaBroker
 
 # FastStream is a specific library for stream processing, used here with Kafka
@@ -19,9 +19,11 @@ from models.transaction import TransactionModel
 from models.message import Message
 from models.run import Run
 from classifiers.fraud_detect import detect_fraud
+from models.duck_basemodel import DuckDBModel
 
 # EnergyMeter is a custom implementation part of a specific library for measuring energy consumption
 from tools.EnergyMeter.energy_meter import EnergyMeter
+from tools.SystemInformation.system_information import get_system_config
 
 
 from langchain_community.llms import LlamaCpp
@@ -34,18 +36,19 @@ broker = KafkaBroker("localhost:29092")
 app = FastStream(broker, title="Transaction Consumer")
 
 # Initialize the LlamaCpp language model
-# Note: This is using a local file path for development purposes
+# Optimized settings for RTX 3070 (8GB VRAM)
 llm = LlamaCpp(
     model_path="/home/hessel/code/lm-studio/bartowski/Phi-3.5-mini-instruct-GGUF/Phi-3.5-mini-instruct-Q4_K_S.gguf",
     temperature=0.1,
     max_tokens=2000,
-    n_ctx=2048,
-    n_batch=512,
-    n_gpu_layers=-1,
-    f16_kv=True,
-    verbose=False,
-    use_mlock=False,
-    use_mmap=True,
+    n_ctx=4096,  # Increased context window
+    n_batch=1024,  # Increased batch size
+    n_gpu_layers=35,  # Specific number of layers to offload
+    f16_kv=True,  # Keep half-precision
+    verbose=False,  # Temporarily enable for performance monitoring
+    use_mlock=True,  # Enable memory locking
+    use_mmap=False,  # Disable memory mapping
+    n_threads=6,  # Add thread count optimization
 )
 
 
@@ -53,9 +56,28 @@ llm = LlamaCpp(
 @app.on_startup
 def setup(logger: Logger, context: ContextRepo):
     logger.info("Creating Message DBs")
-    Message.initialize_db("../../databases/fraud.db")
-    logger.info("Creating Message DBs")
-    Run.initialize_db("../../databases/fraud.db")
+    DuckDBModel.initialize_db(
+        "/home/hessel/code/master-thesis/databases/fraud-prod.db"
+    )  # Use ':memory:' for in-memory database
+    run = Run.start(
+        model_name="Phi-3.5-mini-instruct-Q4_K_S",
+        environment="production",
+        metadata=get_system_config(app, llm),
+    )
+
+    # Save run ID to FastStream context for later access
+    context.set_global("run_id", run.id)
+    logger.info(f"Initialized run with ID: {run.id}")
+
+
+@app.after_shutdown
+def setdown(
+    logger: Logger,
+    run_id: str = Context(),
+):
+    run = Run.get(run_id)
+    run.end()
+    logger.info(f"Stoped run with ID: {run_id}")
 
 
 # Custom JSON decoder to handle datetime, date, and Decimal types
@@ -72,18 +94,14 @@ def custom_json_decoder(dct):
 
 # Kafka consumer function
 @broker.subscriber("fraud-detection")
-async def consume_transaction(msg: Union[str, dict], logger: Logger):
+async def consume_transaction(
+    msg: Union[str, dict],
+    logger: Logger,
+    run_id: str = Context(),
+):
     try:
-        # Handle both string and dictionary inputs
-        if isinstance(msg, str):
-            data = json.loads(msg, object_hook=custom_json_decoder)
-        elif isinstance(msg, dict):
-            data = custom_json_decoder(msg)
-        else:
-            raise ValueError(f"Unexpected input type: {type(msg)}")
 
-        # Create a TransactionModel instance from the decoded data
-        transaction = TransactionModel(**data)
+        transaction = TransactionModel(**msg)
 
         # Initialize the EnergyMeter to measure energy consumption
         meter = EnergyMeter(
@@ -98,22 +116,24 @@ async def consume_transaction(msg: Union[str, dict], logger: Logger):
 
         # Perform fraud detection
         # detect_fraud uses a language model (llm) to analyze the transaction for potential fraud
-        detect_fraud(transaction=transaction, llm=llm)
+        response = detect_fraud(transaction=transaction, llm=llm)
 
         # End energy measurement
         meter.end()
 
+        # Get run_id from context
+        print(run_id)
         # Create and save a Message instance with energy consumption data
-        msg = Message.from_dict(
-            meter.get_total_jules_per_component(), run_id="10", message_id="3223"
-        )
-        msg.save()
 
-        # Log the energy consumption data
-        logger.info(meter.get_total_jules_per_component())
+        llm_msg = Message.create_llm_message(
+            run_id=run_id,
+            power_usage=meter.get_total_jules_per_component(),
+            prompt=response["prompt"],
+            response=response["response"],
+        )
 
         # Log the received transaction
-        logger.info(f"Received transaction: {transaction.trans_num}")
+        logger.info(f"Received message: {llm_msg.id}")
         return True
 
     except ValidationError as e:

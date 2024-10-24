@@ -1,15 +1,17 @@
 from typing import Optional, Dict
+from datetime import datetime
 from .duck_basemodel import DuckDBModel
 
 
 class Message(DuckDBModel):
     run_id: int
     id: Optional[int] = None
-    cpu_usage: float
-    gpu_usage: Optional[float] = None
-    disk_usage: float
+    cpu_usage: float  # Unit: Joules
+    gpu_usage: Optional[float] = None  # Unit: Joules
+    disk_usage: float  # Unit: Joules
     prompt: str
     response: str
+    created_at: datetime = None  # Add timestamp field
 
     @classmethod
     def create_llm_message(
@@ -58,7 +60,7 @@ class Message(DuckDBModel):
         if hasattr(cpu_usage, "__iter__"):
             cpu_usage = cpu_usage[0]
 
-        # Create the message instance
+        # Create the message instance with current timestamp
         message = cls(
             run_id=run_id,
             prompt=prompt,
@@ -66,6 +68,7 @@ class Message(DuckDBModel):
             cpu_usage=cpu_usage,
             gpu_usage=power_usage["gpu"],
             disk_usage=power_usage["disk"],
+            created_at=datetime.utcnow(),  # Add current UTC timestamp
         )
 
         message.save()

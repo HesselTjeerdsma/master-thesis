@@ -1,0 +1,1 @@
+faststream run fraud-consumer:app

@@ -1,7 +1,7 @@
 from langchain_community.llms import LlamaCpp
 from langchain_core.prompts import PromptTemplate
 from langchain.output_parsers import StructuredOutputParser, ResponseSchema
-from langchain.chains import LLMChain
+from langchain_core.runnables import RunnablePassthrough
 from datetime import datetime, date
 from decimal import Decimal
 import sys
@@ -45,7 +45,8 @@ def detect_fraud(transaction: TransactionModel, llm) -> dict:
         """,
     )
 
-    chain = LLMChain(llm=llm, prompt=prompt)
+    # Create the runnable sequence for raw text output
+    chain = prompt | llm
 
     transaction_details = f"""
     Transaction Date/Time: {transaction.trans_date_trans_time}
@@ -59,17 +60,26 @@ def detect_fraud(transaction: TransactionModel, llm) -> dict:
     """
 
     try:
-        result = chain.run(transaction_details=transaction_details)
-        parsed_result = output_parser.parse(result)
+        # Format the complete prompt with the actual transaction details
+        formatted_prompt = prompt.format(
+            transaction_details=transaction_details,
+            format_instructions=output_parser.get_format_instructions(),
+        )
 
-        # Ensure the parsed result is JSON serializable
-        json_result = json.loads(json.dumps(parsed_result))
-        return json_result
+        # Get raw text response
+        result = chain.invoke({"transaction_details": transaction_details})
+
+        return {
+            "response": result,  # This will now be the raw text response
+            "prompt": formatted_prompt,
+        }
     except Exception as e:
         # If there's an error, return a JSON object with an error message
+        formatted_prompt = prompt.format(
+            transaction_details=transaction_details,
+            format_instructions=output_parser.get_format_instructions(),
+        )
         return {
-            "error": str(e),
-            "fraud_risk": "Unknown",
-            "reasons": ["Error occurred during analysis"],
-            "recommended_actions": ["Review transaction manually"],
+            "prompt": formatted_prompt,
+            "response": f"Error during analysis: {str(e)}",
         }

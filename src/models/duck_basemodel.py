@@ -193,3 +193,82 @@ class DuckDBModel(BaseModel):
         ).fetchone()
 
         return result is not None
+
+    @classmethod
+    def list_all_filtered(cls: Type[T], field: str, value: Any) -> List[T]:
+        """
+        List all instances of the model filtered by a field value.
+
+        Args:
+            field (str): The field name to filter on
+            value (Any): The value to filter by
+
+        Returns:
+            List[T]: List of model instances matching the filter
+
+        Raises:
+            RuntimeError: If database is not initialized
+            ValueError: If field doesn't exist in the model
+        """
+        if not cls._connection or not cls._table_name:
+            raise RuntimeError("Database not initialized. Call initialize_db() first.")
+
+        # Verify field exists in model
+        if field not in cls.__annotations__:
+            raise ValueError(f"Field '{field}' does not exist in model {cls.__name__}")
+
+        # Handle special types for the filter value
+        if isinstance(value, dict):
+            value = json.dumps(value)
+        elif isinstance(value, datetime):
+            value = value.isoformat()
+
+        result = cls._connection.execute(
+            f"SELECT * FROM {cls._table_name} WHERE {field} = $1", [value]
+        )
+        columns = [desc[0] for desc in result.description]
+        rows = result.fetchall()
+        instances = []
+
+        for row in rows:
+            # Convert row to dict and handle special types
+            data = dict(zip(columns, row))
+            for key, value in data.items():
+                if isinstance(value, str) and cls.__annotations__.get(key) in (
+                    Dict,
+                    Optional[Dict],
+                ):
+                    try:
+                        data[key] = json.loads(value)
+                    except json.JSONDecodeError:
+                        pass
+            instances.append(cls(**data))
+
+        return instances
+
+    @classmethod
+    def last(cls: Type[T]) -> Optional[T]:
+        """Retrieve the last (highest ID) model instance."""
+        if not cls._connection or not cls._table_name:
+            raise RuntimeError("Database not initialized. Call initialize_db() first.")
+
+        result = cls._connection.execute(
+            f"SELECT * FROM {cls._table_name} ORDER BY id DESC LIMIT 1"
+        )
+        columns = [desc[0] for desc in result.description]
+        row = result.fetchone()
+
+        if row:
+            # Convert row to dict and handle special types
+            data = dict(zip(columns, row))
+            for key, value in data.items():
+                if isinstance(value, str) and cls.__annotations__.get(key) in (
+                    Dict,
+                    Optional[Dict],
+                ):
+                    try:
+                        data[key] = json.loads(value)
+                    except json.JSONDecodeError:
+                        pass
+            return cls(**data)
+        return None
