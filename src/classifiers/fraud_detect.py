@@ -1,22 +1,30 @@
 from langchain_community.llms import LlamaCpp
 from langchain_core.prompts import PromptTemplate
-from langchain.output_parsers import StructuredOutputParser, ResponseSchema
 from langchain_core.runnables import RunnablePassthrough
 from datetime import datetime
 from geopy.distance import geodesic
 from typing import List, Dict
 import sys
 from dateutil.relativedelta import relativedelta
-
+import json
 from dataclasses import dataclass
-from datetime import datetime
-from geopy.distance import geodesic
-from typing import List, Dict, Any, Optional, Tuple
+from typing import Any, Optional, Tuple
 from collections import Counter
+from llama_cpp import LlamaGrammar
 
 sys.path.append("../")
 from models.transaction import TransactionModel
-from pprint import pprint
+
+# Update the grammar to be absolutely strict about the output
+FRAUD_DETECTION_GRAMMAR_STRING = r"""
+root   ::= json
+json   ::= "{" ws risk_level ws "," ws key_factors ws "}"
+risk_level ::= "\"risk_level\"" ws ":" ws ("\"LOW\"" | "\"MEDIUM\"" | "\"HIGH\"")
+key_factors ::= "\"key_factors\"" ws ":" ws "[" factors "]"
+factors ::= "" | factor_item | factor_item ("," ws factor_item)*
+factor_item ::= "\"" [^""]+ "\""
+ws     ::= [ \t\n]*
+"""
 
 
 @dataclass
@@ -39,7 +47,7 @@ class CardholderProfile:
     ) -> "CardholderProfile":
         """Create a cardholder profile from transaction and history"""
         # Calculate age
-        dob = transaction.dob  # datetime.strptime(transaction.dob, "%Y-%m-%d")
+        dob = transaction.dob
         age = relativedelta(datetime.today(), dob).years
         # Home location from current transaction's address
         home_location = (float(transaction.lat), float(transaction.long))
@@ -162,23 +170,15 @@ def analyze_transaction_context(
     }
 
 
-def detect_fraud(
-    transaction: TransactionModel, llm, transaction_history: List[Dict] = None
-) -> dict:
-    response_schemas = [
-        ResponseSchema(
-            name="risk_level", description="Risk level: LOW, MEDIUM, or HIGH"
-        ),
-        ResponseSchema(name="key_factors", description="List of key risk factors"),
-    ]
-
-    output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
-
-    profile = CardholderProfile.from_transaction(transaction, transaction_history or [])
-    risk_analysis = analyze_transaction_context(
-        transaction, transaction_history or [], profile
-    )
-
+def create_risk_prompt(
+    tx_details: str,
+    profile_details: str,
+    risk_details: str,
+    history_details: str,
+    demographic_data: Dict[str, Any],
+    usual_radius: float,
+) -> tuple[PromptTemplate, dict]:
+    """Creates the prompt template and its input values"""
     prompt = PromptTemplate(
         input_variables=[
             "transaction",
@@ -190,36 +190,58 @@ def detect_fraud(
             "job",
             "usual_radius",
         ],
-        partial_variables={
-            "format_instructions": output_parser.get_format_instructions()
-        },
-        template="""Analyze this transaction for fraud.
+        template="""You must respond with ONLY a JSON object containing exactly two fields: "risk_level" and "key_factors". 
+The risk_level must be either "LOW", "MEDIUM", or "HIGH".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
 
+Input Data:
 TRANSACTION: {transaction}
 PROFILE: {profile}
 RISK: {risk_analysis}
 HISTORY: {history}
+AGE: {age}
+GENDER: {gender}
+JOB: {job}
+USUAL RADIUS: {usual_radius:.1f} mi
 
-Consider:
-1. Amount vs category norms
-2. Location vs patterns
-3. Time patterns
-4. Merchant alignment
-5. Age: {age}, Gender: {gender}, Job: {job}
-6. Usual radius: {usual_radius:.1f} mi
-7. Travel patterns
-
-Return JSON with risk_level (LOW/MEDIUM/HIGH) and key_factors (list).
-
-{format_instructions}""",
+Required output format:
+{{
+    "risk_level": "MEDIUM",
+    "key_factors": ["Factor 1", "Factor 2"]
+}}""",
     )
 
+    input_values = {
+        "transaction": tx_details,
+        "profile": profile_details,
+        "risk_analysis": risk_details,
+        "history": history_details,
+        "age": demographic_data["age"],
+        "gender": demographic_data["gender"],
+        "job": demographic_data["job"],
+        "usual_radius": usual_radius,
+    }
+
+    return prompt, input_values
+
+
+def detect_fraud(
+    transaction: TransactionModel, llm, transaction_history: List[Dict] = None
+) -> dict:
+    """
+    Detect fraud using GBNF grammar for structured output
+    """
+    # First create the profile and analyze the transaction
+    profile = CardholderProfile.from_transaction(transaction, transaction_history or [])
+    risk_analysis = analyze_transaction_context(
+        transaction, transaction_history or [], profile
+    )
+
+    # Prepare all the details
     tx_details = f"${transaction.amt} at {transaction.merchant} ({transaction.category}), {transaction.city}, {transaction.state}, {risk_analysis['distance_from_home']}mi from home"
-
     profile_details = f"{profile.age}yo {profile.gender}, {profile.job}, radius: {profile.usual_radius:.1f}mi"
-
     risk_details = f"Location: {'High' if risk_analysis['unusual_location'] else 'Low'}, Amount: {'High' if risk_analysis['unusual_amount'] else 'Low'} ({risk_analysis['amount_deviation']}x), Time: {'High' if risk_analysis['unusual_hour'] else 'Low'}, Travel: {risk_analysis['travel_alert'] or 'None'}"
-
     history_details = (
         "None"
         if not transaction_history
@@ -234,31 +256,47 @@ Return JSON with risk_level (LOW/MEDIUM/HIGH) and key_factors (list).
     )
 
     try:
-        demographic_data = risk_analysis["demographic_context"]
-        formatted_prompt = prompt.format(
-            transaction=tx_details,
-            profile=profile_details,
-            risk_analysis=risk_details,
-            history=history_details,
-            age=demographic_data["age"],
-            gender=demographic_data["gender"],
-            job=demographic_data["job"],
-            usual_radius=profile.usual_radius,
+        # Create prompt and input values
+        prompt, input_values = create_risk_prompt(
+            tx_details,
+            profile_details,
+            risk_details,
+            history_details,
+            risk_analysis["demographic_context"],
+            profile.usual_radius,
         )
 
-        chain = prompt | llm
-        result = chain.invoke(
-            {
-                "transaction": tx_details,
-                "profile": profile_details,
-                "risk_analysis": risk_details,
-                "history": history_details,
-                "age": demographic_data["age"],
-                "gender": demographic_data["gender"],
-                "job": demographic_data["job"],
-                "usual_radius": profile.usual_radius,
+        formatted_prompt = prompt.format(**input_values)
+
+        # Create LlamaGrammar object from the grammar string
+        grammar = LlamaGrammar.from_string(FRAUD_DETECTION_GRAMMAR_STRING)
+
+        # Set the grammar on the LLM
+        if isinstance(llm, LlamaCpp):
+            # Store original settings
+            original_settings = {
+                "temperature": llm.temperature,
+                "max_tokens": llm.max_tokens,
+                "top_p": llm.top_p,
+                "top_k": llm.top_k,
             }
-        )
+
+            # Apply strict settings
+            llm.temperature = 0.1  # Very low temperature for deterministic output
+            llm.max_tokens = 100  # Limit output length
+            llm.top_p = 0.1  # Restrict sampling to most likely tokens
+            llm.top_k = 1  # Only consider the most likely token
+            llm.client.grammar = grammar
+
+            try:
+                chain = prompt | llm
+                result = chain.invoke(input_values)
+            finally:
+                # Restore original settings
+                llm.temperature = original_settings["temperature"]
+                llm.max_tokens = original_settings["max_tokens"]
+                llm.top_p = original_settings["top_p"]
+                llm.top_k = original_settings["top_k"]
 
         return {"response": result, "prompt": formatted_prompt}
 
