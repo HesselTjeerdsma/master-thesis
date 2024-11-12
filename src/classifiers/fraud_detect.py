@@ -58,11 +58,7 @@ class CardholderProfile:
                 common_merchants=[transaction.merchant],
                 common_categories=[transaction.category],
                 typical_amounts={transaction.category: float(transaction.amt)},
-                active_hours=[
-                    datetime.strptime(
-                        transaction.trans_date_trans_time, "%Y-%m-%d %H:%M:%S"
-                    ).hour
-                ],
+                active_hours=[transaction.trans_date_trans_time.hour],
                 job=transaction.job,
                 gender=transaction.gender,
                 age=age,
@@ -85,12 +81,10 @@ class CardholderProfile:
             cat: sum(amounts) / len(amounts)
             for cat, amounts in amounts_by_category.items()
         }
-
-        # Analyze transaction hours
-        hours = [
-            datetime.strptime(tx["timestamp"], "%Y-%m-%d %H:%M:%S").hour
-            for tx in history
-        ]
+        timestamp = datetime.strptime(
+            tx["timestamp"], "%Y-%m-%dT%H:%M:%S"
+        )  # Analyze transaction hours
+        hours = [timestamp.hour for tx in history]
 
         # Calculate usual radius
         distances = [
@@ -118,9 +112,7 @@ def analyze_transaction_context(
     transaction: TransactionModel, history: List[Dict], profile: CardholderProfile
 ) -> Dict:
     """Analyze transaction in context of cardholder profile and history"""
-    current_time = datetime.strptime(
-        str(transaction.trans_date_trans_time), "%Y-%m-%d %H:%M:%S"
-    )
+    current_time = transaction.trans_date_trans_time
     current_location = (float(transaction.merch_lat), float(transaction.merch_long))
 
     # Basic transaction analysis
@@ -142,7 +134,7 @@ def analyze_transaction_context(
     travel_alert = None
     if history:
         last_tx = sorted(history, key=lambda x: x["timestamp"])[-1]
-        last_time = datetime.strptime(last_tx["timestamp"], "%Y-%m-%d %H:%M:%S")
+        last_time = datetime.strptime(last_tx["timestamp"], "%Y-%m-%dT%H:%M:%S")
         last_location = (float(last_tx["merch_lat"]), float(last_tx["merch_long"]))
 
         if last_time < current_time:
@@ -190,26 +182,22 @@ def create_risk_prompt(
             "job",
             "usual_radius",
         ],
-        template="""You must respond with ONLY a JSON object containing exactly two fields: "risk_level" and "key_factors". 
-The risk_level must be either "LOW", "MEDIUM", or "HIGH".
-The key_factors must be an array of strings.
-DO NOT include any other text, analysis, or explanation.
+        template="""You are an expert in detecting fraud, with expertise in financial transaction analysis. 
+        Your role is to identify suspicious patterns and anomalies in transactions. 
+        You are part of a multi-layer fraud detection system where your flags will be reviewed by human analysts. 
+        Since false negatives (missing fraud) are more costly than false positives (flagging legitimate transactions), err on the side of caution when flagging suspicious activity.
 
 Input Data:
 TRANSACTION: {transaction}
 PROFILE: {profile}
-RISK: {risk_analysis}
 HISTORY: {history}
 AGE: {age}
 GENDER: {gender}
 JOB: {job}
 USUAL RADIUS: {usual_radius:.1f} mi
 
-Required output format:
-{{
-    "risk_level": "MEDIUM",
-    "key_factors": ["Factor 1", "Factor 2"]
-}}""",
+{risk_analysis}
+""",
     )
 
     input_values = {
@@ -241,7 +229,10 @@ def detect_fraud(
     # Prepare all the details
     tx_details = f"${transaction.amt} at {transaction.merchant} ({transaction.category}), {transaction.city}, {transaction.state}, {risk_analysis['distance_from_home']}mi from home"
     profile_details = f"{profile.age}yo {profile.gender}, {profile.job}, radius: {profile.usual_radius:.1f}mi"
-    risk_details = f"Location: {'High' if risk_analysis['unusual_location'] else 'Low'}, Amount: {'High' if risk_analysis['unusual_amount'] else 'Low'} ({risk_analysis['amount_deviation']}x), Time: {'High' if risk_analysis['unusual_hour'] else 'Low'}, Travel: {risk_analysis['travel_alert'] or 'None'}"
+    risk_details = f"""The transaction location is {'unusually far from typical patterns' if risk_analysis['unusual_location'] else 'within normal travel range'}
+The transaction amount is {'significantly higher than usual' if risk_analysis['unusual_amount'] else 'consistent with past spending'} ({risk_analysis['amount_deviation']:.1f}x typical)
+The timing of this transaction {'falls outside normal hours' if risk_analysis['unusual_hour'] else 'matches typical patterns'}
+{risk_analysis['travel_alert'] if risk_analysis['travel_alert'] else 'No concerning travel patterns detected'}"""
     history_details = (
         "None"
         if not transaction_history
@@ -250,7 +241,7 @@ def detect_fraud(
                 f"${tx['amount']} at {tx['merchant']}"
                 for tx in sorted(
                     transaction_history, key=lambda x: x["timestamp"], reverse=True
-                )[:2]
+                )[1:10]
             ]
         )
     )
@@ -282,10 +273,8 @@ def detect_fraud(
             }
 
             # Apply strict settings
-            llm.temperature = 0.1  # Very low temperature for deterministic output
-            llm.max_tokens = 100  # Limit output length
-            llm.top_p = 0.1  # Restrict sampling to most likely tokens
-            llm.top_k = 1  # Only consider the most likely token
+            llm.temperature = 0.8
+            llm.max_tokens = 500  # Limit output length
             llm.client.grammar = grammar
 
             try:

@@ -12,6 +12,7 @@ class Message(DuckDBModel):
     prompt: str
     response: str
     created_at: datetime = None  # Add timestamp field
+    metadata: Optional[Dict] = None
 
     @classmethod
     def create_llm_message(
@@ -20,6 +21,7 @@ class Message(DuckDBModel):
         prompt: str,
         response: str,
         power_usage: Dict[str, float],
+        metadata: Optional[Dict] = None,
     ) -> "Message":
         """
         Create a new message record for an LLM interaction with power usage metrics.
@@ -69,6 +71,7 @@ class Message(DuckDBModel):
             gpu_usage=power_usage["gpu"],
             disk_usage=power_usage["disk"],
             created_at=datetime.utcnow(),  # Add current UTC timestamp
+            metadata=metadata,
         )
 
         message.save()

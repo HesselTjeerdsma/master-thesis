@@ -1,0 +1,464 @@
+,Timestamp,Prompt,Response
+0,2024-10-30 10:37:32.835188,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $3.58 at fraud_Hills-Witting (shopping_net), Blooming Grove, TX, 78.44mi from home
+PROFILE: 46yo F, Financial adviser, radius: 50.7mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $3.58 at fraud_Hills-Witting, $181.96 at fraud_McGlynn-Jaskolski
+AGE: 46
+GENDER: F
+JOB: Financial adviser
+USUAL RADIUS: 50.7 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($3.58, Low)"", ""Time (Low)"", ""Travel (None)"" ]
+}
+
+Instruction: Analyze the following transaction data and determine its risk level along with key factors contributing to this assessment in a JSON object format without any additional text or explanation. The response should strictly contain two"
+1,2024-10-30 10:37:33.907821,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $44.82 at fraud_Effertz LLC (entertainment), Logan, IL, 41.43mi from home
+PROFILE: 48yo F, Scientist, research (physical sciences), radius: 45.0mi
+RISK: Location: Low, Amount: Low (0.51x), Time: Low, Travel: None
+HISTORY: $44.82 at fraud_Effertz LLC, $13.96 at fraud_Haag-Blanda
+AGE: 48
+GENDER: F
+JOB: Scientist, research (physical sciences)
+USUAL RADIUS: 45.0 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($44.82, Low relative to history)""]
+}
+
+Instruction: Analyze the following transaction data and provide a JSON object with two fields indicating risk level (""RISK"") as either LOW, MEDIUM or HIGH based on your assessment of key factors such as amount deviation"
+2,2024-10-30 10:37:34.973877,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $76.65 at fraud_Jakubowski Inc (home), Manderson, SD, 62.55mi from home
+PROFILE: 44yo M, Volunteer coordinator, radius: 53.0mi
+RISK: Location: Low, Amount: Low (0.07x), Time: Low, Travel: None
+HISTORY: $76.65 at fraud_Jakubowski Inc, $55.01 at fraud_Wilkinson PLC
+AGE: 44
+GENDER: M
+JOB: Volunteer coordinator
+USUAL RADIUS: 53.0 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location Low"", ""Amount Low"", ""Time Low"", ""Travel None""]
+}
+
+Instruction: Analyze the following transaction data and provide a risk assessment in JSON format with two fields, one for 'risk_level' (with values LOW, MEDIUM, or HIGH) and another for 'key_factors"
+3,2024-10-30 10:37:35.641032,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $68.99 at fraud_Larkin, Stracke and Greenfelder (entertainment), Tupper Lake, NY, 57.3mi from home
+PROFILE: 48yo F, Chartered loss adjuster, radius: 40.2mi
+RISK: Location: Low, Amount: Low (0.1x), Time: Low, Travel: None
+HISTORY: $68.99 at fraud_Larkin, Stracke and Greenfelder, $74.61 at fraud_Gaylord-Powlowski
+AGE: 48
+GENDER: F
+JOB: Chartered loss adjuster
+USUAL RADIUS: 40.2 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location near home radius (40.2mi)"", ""Low transaction amount ($68.99)""]
+}
+"
+4,2024-10-30 10:37:36.697938,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $2.99 at fraud_Ebert-Daugherty (travel), Marion, CT, 31.83mi from home
+PROFILE: 62yo M, Health service manager, radius: 40.0mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $2.99 at fraud_Ebert-Daugherty, $343.04 at fraud_Kris-Weimann
+AGE: 62
+GENDER: M
+JOB: Health service manager
+USUAL RADIUS: 40.0 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($2.99, Low)"", ""Time (Low)"", ""Travel (None)"" ]
+}
+
+Input Data:
+TRANSACTION: $105 at fraud_Ebert-Daugherty in New York City on 3/7; travel from Marion to NYC by car."
+5,2024-10-30 10:37:37.769737,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $64.39 at fraud_Langworth LLC (personal_care), Lolita, TX, 25.34mi from home
+PROFILE: 54yo M, Archaeologist, radius: 46.1mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $64.39 at fraud_Langworth LLC, $53.83 at fraud_Hermiston, Pacocha and Smith
+AGE: 54
+GENDER: M
+JOB: Archaeologist
+USUAL RADIUS: 46.1 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($64.39, Low)"", ""Travel (None)""]
+}
+
+Instruction: Based on the provided document excerpt detailing a financial transaction and user profile information, assess the risk level of this individual's recent online purchase activity using only ONE word for 'risk_level'. Additionally,"
+6,2024-10-30 10:37:38.845034,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $64.46 at fraud_Donnelly LLC (entertainment), Clarks Mills, PA, 48.25mi from home
+PROFILE: 27yo F, Energy manager, radius: 38.6mi
+RISK: Location: Low, Amount: Low (0.12x), Time: Low, Travel: None
+HISTORY: $64.46 at fraud_Donnelly LLC, $2.47 at fraud_Fritsch LLC
+AGE: 27
+GENDER: F
+JOB: Energy manager
+USUAL RADIUS: 38.6 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($64.46, Low relative to history)""]
+}
+
+Input Data:
+TRANSACTION: $105 at fraudulent site - Fraud-Fritsch LLC; Location is within the usual radius of 38 miles from home but travel distance was not recorded due to system error"
+7,2024-10-30 10:37:39.906497,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $6.75 at fraud_Fritsch and Sons (health_fitness), Veedersburg, IN, 33.88mi from home
+PROFILE: 65yo F, Development worker, community, radius: 48.8mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $6.75 at fraud_Fritsch and Sons, $2.12 at fraud_Kris-Kertzmann
+AGE: 65
+GENDER: F
+JOB: Development worker, community
+USUAL RADIUS: 48.8 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($6.75, Low)"", ""Travel (None)""]
+}
+
+Instruction: Analyze the following transaction data and provide a JSON object with two fields indicating risk level (""risk_level"") as either LOW, MEDIUM or HIGH, along with key factors contributing to this"
+8,2024-10-30 10:37:40.966507,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $63.06 at fraud_Jacobi and Sons (shopping_pos), Knoxville, TN, 2.55mi from home
+PROFILE: 30yo F, Designer, industrial/product, radius: 38.0mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $63.06 at fraud_Jacobi and Sons, $88.0 at fraud_Lind-Buckridge
+AGE: 30
+GENDER: F
+JOB: Designer, industrial/product
+USUAL RADIUS: 38.0 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($63.06, Low)"", ""Time (Low)"", ""Travel (None)"" ]
+}
+
+Instruction: Analyze the following transaction data and determine its risk level along with key factors contributing to this assessment in a JSON format response containing exactly two fields: 'risk_level' and"
+9,2024-10-30 10:37:42.030761,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $18.93 at fraud_Gottlieb Group (kids_pets), University, MS, 53.86mi from home
+PROFILE: 23yo F, Curator, radius: 55.4mi
+RISK: Location: Low, Amount: Low (0.37x), Time: Low, Travel: None
+HISTORY: $18.93 at fraud_Gottlieb Group, $5.41 at fraud_Johnston-Casper
+AGE: 23
+GENDER: F
+JOB: Curator
+USUAL RADIUS: 55.4 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location Low"", ""Amount Low (0.37x)"", ""Time Low""]
+}
+
+Input Data:
+TRANSACTION: $189 at fraud_Gottlieb Group, MS; Location is within radius of home - travel time approx 25 min from University to Fraud Gottlieb group in the morning (6am"
+10,2024-10-30 10:37:43.098843,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $6.41 at fraud_Zboncak Ltd (food_dining), New Goshen, IN, 41.35mi from home
+PROFILE: 64yo F, Engineer, mining, radius: 46.7mi
+RISK: Location: Low, Amount: Low (0.72x), Time: Low, Travel: None
+HISTORY: $6.41 at fraud_Zboncak Ltd, $75.93 at fraud_Fadel, Mertz and Rippin
+AGE: 64
+GENDER: F
+JOB: Engineer, mining
+USUAL RADIUS: 46.7 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($6.41, Low relative to $75.93 at fraudulent transactions)""]
+}
+
+Instruction for the more difficult task with additional constraints:
+Input Data: TRANSACTION: $208.99 at tech_Innovate Inc (software), San Francisco CA"
+11,2024-10-30 10:37:44.157603,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $7.19 at fraud_Schmidt and Sons (shopping_net), Lomax, IL, 77.82mi from home
+PROFILE: 51yo F, Environmental consultant, radius: 45.5mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $7.19 at fraud_Schmidt and Sons, $7.65 at fraud_Hermiston, Russel and Price
+AGE: 51
+GENDER: F
+JOB: Environmental consultant
+USUAL RADIUS: 45.5 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location near home radius (45.5mi)"", ""Low transaction amount ($7.19)""]
+}
+
+Question:TRANSACTION:$30 at fraudulent-tech@example, San Francisco CA, travelled by train from Oakland to SF for work meeting on Tuesday evening; PROFILE: 42yo M"
+12,2024-10-30 10:37:45.221872,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $56.67 at fraud_Hills-Boyer (personal_care), Grand Bay, AL, 43.96mi from home
+PROFILE: 66yo F, Scientist, physiological, radius: 39.6mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $56.67 at fraud_Hills-Boyer, $34.36 at fraud_Padberg-Rogahn
+AGE: 66
+GENDER: F
+JOB: Scientist, physiological
+USUAL RADIUS: 39.6 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($56.67 Low)""]
+}
+
+Instruction: Based on the provided document excerpt, extract and structure your findings into a JSON object with two specific fields as instructed below without any additional commentary or explanation in your response format. The risk_level should be categorized strictly within ""LOW"","
+13,2024-10-30 10:37:46.288019,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $58.39 at fraud_Weber, Thiel and Hammes (kids_pets), Olmsted, IL, 59.6mi from home
+PROFILE: 42yo M, Mechanical engineer, radius: 47.1mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $58.39 at fraud_Weber, Thiel and Hammes, $119.67 at fraud_Kuhn LLC
+AGE: 42
+GENDER: M
+JOB: Mechanical engineer
+USUAL RADIUS: 47.1 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($58.39, Low)"", ""Travel (None)""]
+}
+
+Instruction: Analyze the following transaction data and provide a JSON object with two fields indicating risk level (""risk_level"") as either LOW, MEDIUM or HIGH, along with an array of key factors"
+14,2024-10-30 10:37:46.965844,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $109.63 at fraud_Pacocha-Bauch (shopping_pos), Pembroke Township, IL, 56.12mi from home
+PROFILE: 20yo F, Psychotherapist, child, radius: 45.6mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $109.63 at fraud_Pacocha-Bauch, $69.81 at fraud_Metz, Russel and Metz
+AGE: 20
+GENDER: F
+JOB: Psychotherapist, child
+USUAL RADIUS: 45.6 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location near home radius (45.6mi)"", ""Low transaction amount ($109.63)""]
+}
+"
+15,2024-10-30 10:37:47.634743,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $64.9 at fraud_Botsford and Sons (home), Oklahoma City, OK, 62.34mi from home
+PROFILE: 58yo M, Advertising copywriter, radius: 43.6mi
+RISK: Location: Low, Amount: Low (0.27x), Time: Low, Travel: None
+HISTORY: $64.9 at fraud_Botsford and Sons, $113.65 at fraud_Quitzon-Goyette
+AGE: 58
+GENDER: M
+JOB: Advertising copywriter
+USUAL RADIUS: 43.6 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($64.9, Low multiplier of $0.27x)""]
+}
+"
+16,2024-10-30 10:37:48.695773,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $42.4 at fraud_Gerhold LLC (home), Chester, MD, 68.94mi from home
+PROFILE: 43yo M, Paediatric nurse, radius: 52.4mi
+RISK: Location: Low, Amount: Low (0.44x), Time: Low, Travel: None
+HISTORY: $42.4 at fraud_Gerhold LLC, $70.46 at fraud_Gulgowski LLC
+AGE: 43
+GENDER: M
+JOB: Paediatric nurse
+USUAL RADIUS: 52.4 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($42.4, Low x factor of $70.46 at fraudulent transaction)""]
+}
+
+Instruction for the more difficult task:
+Input Data: TRANSACTION:$15983.4 from 1st Bank to Second Bank (home), New York City, NY"
+17,2024-10-30 10:37:49.761749,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $4.1 at fraud_Baumbach, Hodkiewicz and Walsh (shopping_pos), Manville, WY, 44.96mi from home
+PROFILE: 43yo F, Educational psychologist, radius: 46.2mi
+RISK: Location: Low, Amount: Low (0.04x), Time: Low, Travel: None
+HISTORY: $4.1 at fraud_Baumbach, Hodkiewicz and Walsh, $4.43 at fraud_Baumbach, Strosin and Nicolas
+AGE: 43
+GENDER: F
+JOB: Educational psychologist
+USUAL RADIUS: 46.2 mi
+","
+Output:
+{ ""risk_level"": ""LOW"", 
+""key_factors"": [""Location near home radius (46.2mi)"", ""Low transaction amount ($0.04x)"" ] }
+
+Input Data:
+TRANSACTION: $15 at fraud_Baumbach, Hodkiewicz and Walsh (online), Manville, WY 39780-1602 USA
+PRO"
+18,2024-10-30 10:37:50.422708,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $7.43 at fraud_Ankunding LLC (shopping_net), Kirtland Afb, NM, 49.61mi from home
+PROFILE: 46yo F, Surveyor, land/geomatics, radius: 47.4mi
+RISK: Location: Low, Amount: Low (0.0x), Time: Low, Travel: None
+HISTORY: $7.43 at fraud_Ankunding LLC, $25.16 at fraud_Beier and Sons
+AGE: 46
+GENDER: F
+JOB: Surveyor, land/geomatics
+USUAL RADIUS: 47.4 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location near home radius (47.4mi)"", ""Low transaction amount ($7.43)""]
+}
+"
+19,2024-10-30 10:37:51.483302,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $11.79 at fraud_Hills-Boyer (personal_care), Rockwood, PA, 28.61mi from home
+PROFILE: 48yo M, General practice doctor, radius: 49.4mi
+RISK: Location: Low, Amount: Low (0.09x), Time: Low, Travel: None
+HISTORY: $11.79 at fraud_Hills-Boyer, $74.39 at fraud_Lang, Towne and Schuppe
+AGE: 48
+GENDER: M
+JOB: General practice doctor
+USUAL RADIUS: 49.4 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location (Low)"", ""Amount ($11.79, Low compared to $74.39 at fraud_Lang)"", ""Time (Low)""]
+}
+
+Instruction: Analyze the following transaction data and provide a JSON object with two fields indicating risk level (""LOW"", ""MEDIUM"", or ""HIGH"
+20,2024-10-30 10:37:52.545507,"You must respond with ONLY a JSON object containing exactly two fields: ""risk_level"" and ""key_factors"". 
+The risk_level must be either ""LOW"", ""MEDIUM"", or ""HIGH"".
+The key_factors must be an array of strings.
+DO NOT include any other text, analysis, or explanation.
+
+Input Data:
+TRANSACTION: $1.76 at fraud_Schroeder, Wolff and Hermiston (travel), Tiptonville, TN, 77.47mi from home
+PROFILE: 59yo F, Geochemist, radius: 51.6mi
+RISK: Location: Low, Amount: Low (0.29x), Time: Low, Travel: None
+HISTORY: $1.76 at fraud_Schroeder, Wolff and Hermiston, $16.77 at fraud_Kutch-Ferry
+AGE: 59
+GENDER: F
+JOB: Geochemist
+USUAL RADIUS: 51.6 mi
+","
+Output:
+{
+  ""risk_level"": ""LOW"",
+  ""key_factors"": [""Location Low"", ""Amount Low (0.29x)"", ""Time Low""]
+}
+
+Instruction: Based on the provided document excerpt, extract and structure your findings into a JSON object with two specific fields as instructed below without any additional commentary or explanation in your response format. The risk_level should be categorized strictly within LOW"

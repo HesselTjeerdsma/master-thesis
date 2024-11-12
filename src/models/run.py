@@ -235,6 +235,7 @@ class Run(DuckDBModel):
                     "Timestamp": msg.created_at,
                     "Prompt": msg.prompt,
                     "Response": msg.response,
+                    "Metadata": msg.metadata,
                 }
             )
 

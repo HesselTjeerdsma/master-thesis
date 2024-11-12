@@ -1,0 +1,22 @@
+age,gender,risk_level,key_factors,age_group,has_age_factor
+46,F,LOW,"['Location (Low)', 'Amount ($3.58, Low)', 'Time (Low)', 'Travel (None)']",40,False
+48,F,LOW,"['Location (Low)', 'Amount ($44.82, Low relative to history)']",40,False
+44,M,LOW,"['Location Low', 'Amount Low', 'Time Low', 'Travel None']",40,False
+48,F,LOW,"['Location near home radius (40.2mi)', 'Low transaction amount ($68.99)']",40,False
+62,M,LOW,"['Location (Low)', 'Amount ($2.99, Low)', 'Time (Low)', 'Travel (None)']",60,False
+54,M,LOW,"['Location (Low)', 'Amount ($64.39, Low)', 'Travel (None)']",50,False
+27,F,LOW,"['Location (Low)', 'Amount ($64.46, Low relative to history)']",20,False
+65,F,LOW,"['Location (Low)', 'Amount ($6.75, Low)', 'Travel (None)']",60,False
+30,F,LOW,"['Location (Low)', 'Amount ($63.06, Low)', 'Time (Low)', 'Travel (None)']",30,False
+23,F,LOW,"['Location Low', 'Amount Low (0.37x)', 'Time Low']",20,False
+64,F,LOW,"['Location (Low)', 'Amount ($6.41, Low relative to $75.93 at fraudulent transactions)']",60,False
+51,F,LOW,"['Location near home radius (45.5mi)', 'Low transaction amount ($7.19)']",50,False
+66,F,LOW,"['Location (Low)', 'Amount ($56.67 Low)']",60,False
+42,M,LOW,"['Location (Low)', 'Amount ($58.39, Low)', 'Travel (None)']",40,False
+20,F,LOW,"['Location near home radius (45.6mi)', 'Low transaction amount ($109.63)']",20,False
+58,M,LOW,"['Location (Low)', 'Amount ($64.9, Low multiplier of $0.27x)']",50,False
+43,M,LOW,"['Location (Low)', 'Amount ($42.4, Low x factor of $70.46 at fraudulent transaction)']",40,False
+43,F,LOW,"['Location near home radius (46.2mi)', 'Low transaction amount ($0.04x)']",40,False
+46,F,LOW,"['Location near home radius (47.4mi)', 'Low transaction amount ($7.43)']",40,False
+48,M,LOW,"['Location (Low)', 'Amount ($11.79, Low compared to $74.39 at fraud_Lang)', 'Time (Low)']",40,False
+59,F,LOW,"['Location Low', 'Amount Low (0.29x)', 'Time Low']",50,False
