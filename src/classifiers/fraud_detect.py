@@ -82,7 +82,7 @@ class CardholderProfile:
             for cat, amounts in amounts_by_category.items()
         }
         timestamp = datetime.strptime(
-            tx["timestamp"], "%Y-%m-%dT%H:%M:%S"
+            tx["timestamp"], "%Y-%m-%d %H:%M:%S"
         )  # Analyze transaction hours
         hours = [timestamp.hour for tx in history]
 
@@ -134,7 +134,7 @@ def analyze_transaction_context(
     travel_alert = None
     if history:
         last_tx = sorted(history, key=lambda x: x["timestamp"])[-1]
-        last_time = datetime.strptime(last_tx["timestamp"], "%Y-%m-%dT%H:%M:%S")
+        last_time = datetime.strptime(last_tx["timestamp"], "%Y-%m-%d %H:%M:%S")
         last_location = (float(last_tx["merch_lat"]), float(last_tx["merch_long"]))
 
         if last_time < current_time:

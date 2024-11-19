@@ -71,37 +71,6 @@ def process_transaction_data(raw_data: dict, logger: Logger) -> dict:
         processed_data["merch_long"] = float(processed_data["merch_long"])
         processed_data["unix_time"] = int(processed_data["unix_time"])
 
-        # Process recent transactions if present
-        if "recent_transactions" in processed_data:
-            processed_transactions = []
-            for idx, trans in enumerate(processed_data["recent_transactions"]):
-                try:
-                    processed_trans = trans.copy()
-                    logger.debug(
-                        f"Processing recent transaction {idx} with keys: {list(processed_trans.keys())}"
-                    )
-
-                    # Convert transaction-specific fields
-                    processed_trans["timestamp"] = datetime.strptime(
-                        processed_trans["timestamp"], "%Y-%m-%d %H:%M:%S"
-                    )
-                    processed_trans["amount"] = Decimal(str(processed_trans["amount"]))
-                    processed_trans["merch_lat"] = float(processed_trans["merch_lat"])
-                    processed_trans["merch_long"] = float(processed_trans["merch_long"])
-                    if (
-                        processed_data["trans_date_trans_time"]
-                        < processed_trans["timestamp"]
-                    ):
-                        print(processed_trans)
-                        processed_transactions.append(processed_trans)
-                except Exception as e:
-                    logger.error(f"Error processing recent transaction {idx}: {str(e)}")
-                    raise ValueError(
-                        f"Failed to process recent transaction {idx}: {str(e)}"
-                    )
-
-            processed_data["recent_transactions"] = processed_transactions
-
     except Exception as e:
         logger.error(f"Error processing main transaction data: {str(e)}")
         raise ValueError(f"Failed to process transaction data: {str(e)}")
@@ -228,7 +197,6 @@ async def consume_transaction(
     transaction = TransactionModel(**processed_data)
 
     # Get recent transactions
-    print(processed_data)
     recent_transactions = processed_data.get("recent_transactions", [])
 
     logger.info(
