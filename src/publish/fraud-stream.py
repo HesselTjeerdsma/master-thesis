@@ -193,9 +193,11 @@ def publish_messages(
     transaction_selector = TransactionSelector(
         max_cards,
         selected_cards={
-            # "630423337322",
             "30074693890476",
-        },  # 30074693890476 contains fraud!!!!
+            "4683520018489354",
+            "3517527805128735",
+            "4497451418073897078",
+        },  # these contain fraud!!!!
     )
 
     producer = KafkaProducer(

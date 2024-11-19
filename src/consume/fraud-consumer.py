@@ -124,7 +124,7 @@ stats = ThroughputStats(
 # Initialize the LlamaCpp language model
 llm = LlamaCpp(
     model_path="/home/hessel/code/lm-studio/bartowski/Phi-3.5-mini-instruct-GGUF/Phi-3.5-mini-instruct-Q4_K_S.gguf",
-    temperature=0.8,
+    temperature=0.6,
     max_tokens=5000,
     n_ctx=4096,
     n_batch=1024,
@@ -262,16 +262,6 @@ async def consume_transaction(
 
     logger.info(f"Processed message: {llm_msg.id}")
     return True
-
-    # except Exception as e:
-    #    logger.error(f"Error in fraud detection processing: {str(e)}")
-    #    raise
-    """"
-    except Exception as e:
-        logger.error(f"Error processing transaction: {str(e)}")
-        # Include the full details of the error for debugging
-        logger.error(f"Full error details: {type(e).__name__}: {str(e)}")
-        return False"""
 
 
 @app.on_startup
