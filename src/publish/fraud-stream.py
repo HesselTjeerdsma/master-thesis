@@ -90,7 +90,9 @@ class RedisTransactionManager:
 
             history = self.get_transaction_history(
                 cc_num, reference_time=trans_datetime
-            )
+            )[
+                1:
+            ]  # do not add current transaction
 
             enriched_transaction = transaction.copy()
             enriched_transaction["recent_transactions"] = history
@@ -149,6 +151,18 @@ class TransactionSelector:
     def get_transaction_count(self) -> int:
         return sum(len(trans) for trans in self.transactions.values())
 
+    def get_fraud_count(self) -> int:
+        """
+        Returns the total number of fraudulent transactions across all selected cards.
+
+        Returns:
+            int: Count of fraudulent transactions
+        """
+        fraud_count = 0
+        for transactions in self.transactions.values():
+            fraud_count += sum(1 for trans in transactions if trans["is_fraud"])
+        return fraud_count
+
 
 def check_kafka_connection(bootstrap_servers):
     try:
@@ -197,7 +211,7 @@ def publish_messages(
             "4683520018489354",
             "3517527805128735",
             "4497451418073897078",
-        },  # these contain fraud!!!!
+        },
     )
 
     producer = KafkaProducer(
@@ -233,14 +247,13 @@ def publish_messages(
 
     # Set simulation timeframe based on the earliest date
     simulation_start = min_date + timedelta(days=(history_timeframe_days))
-
-    # Set simulation timeframe based on the earliest date
     simulation_end = simulation_start + timedelta(days=(simulation_timeframe_days))
 
     print(f"Using history period: {min_date} to {simulation_start}")
     print(f"Using simulation period: {simulation_start} to {simulation_end}")
 
     # Process transactions
+    transactions_to_publish = []
     with open(csv_file, "r") as file:
         csv_reader = csv.DictReader(file)
         fraud_c = 0
@@ -256,13 +269,21 @@ def publish_messages(
                 else:
                     trans_date = datetime.strptime(trans_date_str, "%Y-%m-%d %H:%M:%S")
 
+                cc_num = transaction_dict["cc_num"]
+
                 if trans_date <= simulation_end:
-                    if trans_date >= simulation_start:
-                        if transaction_dict["is_fraud"]:
-                            fraud_c += 1
-                        else:
-                            legit_c += 1
-                        transaction_selector.add_transaction(transaction_dict)
+                    if trans_date < simulation_start:
+                        # Only add to Redis if it's a card we're interested in
+                        if transaction_selector.can_add_card(cc_num):
+                            redis_manager.add_transaction(transaction_dict)
+                    else:
+                        if transaction_selector.can_add_card(cc_num):
+                            if transaction_dict["is_fraud"]:
+                                fraud_c += 1
+                            else:
+                                legit_c += 1
+                            transaction_selector.add_transaction(transaction_dict)
+                            transactions_to_publish.append(transaction_dict)
                 else:
                     print(
                         f"Reached transaction after {simulation_end}, stopping processing."
@@ -278,13 +299,18 @@ def publish_messages(
 
     # Get statistics
     total_transactions = transaction_selector.get_transaction_count()
-    if total_transactions == 0:
-        print("No transactions found within specified timeframe. Exiting.")
+    total_fraud = transaction_selector.get_fraud_count()
+
+    if total_transactions == 0 or total_fraud == 0:
+        print(
+            "No transactions or fraudulent transactions found within specified timeframe. Exiting."
+        )
         return
 
     print(f"\nTransaction Statistics:")
     print(f"Selected cards: {len(transaction_selector.selected_cards)}")
     print(f"Total transactions: {total_transactions}")
+    print(f"Total Fraud: {total_fraud}")
 
     # Publish transactions
     published = 0
@@ -300,7 +326,7 @@ def publish_messages(
 
     print(f"\nProcessing Statistics:")
     print(f"Total transactions to publish: {len(all_transactions)}")
-    print(transaction_selector.selected_cards)
+    # print(transaction_selector.selected_cards)
 
     # Publish transactions
     for transaction in all_transactions:
@@ -366,8 +392,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--history-timeframe",
         type=int,
-        default=30,
-        help="Number of days to keep in transaction history (default: 30)",
+        default=60,
+        help="Number of days to keep in transaction history (default: 60)",
     )
     parser.add_argument(
         "--simulation-timeframe",

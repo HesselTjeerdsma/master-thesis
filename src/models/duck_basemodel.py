@@ -17,7 +17,10 @@ class DuckDBModel(BaseModel):
     _table_name: Optional[str] = None
 
     @classmethod
-    def initialize_db(cls, path: str = ":memory:") -> None:
+    def initialize_db(
+        cls,
+        path: str = ":memory:",
+    ) -> None:
         """Initialize DuckDB connection and create tables for all model classes."""
         cls._connection = duckdb.connect(path)
 

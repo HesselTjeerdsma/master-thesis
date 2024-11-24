@@ -54,6 +54,9 @@ class CardholderProfile:
                 usual_radius=0.0,
             )
 
+        # remove current transcation from history
+        # history = history[1:]
+
         # Analyze transaction history
         merchants = Counter([tx["merchant"] for tx in history])
         categories = Counter([tx["category"] for tx in history])
@@ -84,7 +87,8 @@ class CardholderProfile:
             ).miles
             for tx in history
         ]
-        usual_radius = sum(distances) / len(distances)
+        # multiply by two as fair assumption
+        usual_radius = (sum(distances) / len(distances)) * 2
 
         return cls(
             home_location=home_location,
@@ -132,7 +136,7 @@ def create_fraud_analysis_prompt(
     last_location = None
 
     if history:
-        last_tx = sorted(history, key=lambda x: x["timestamp"])[-1]
+        last_tx = history[0]
         last_time = datetime.strptime(last_tx["timestamp"], "%Y-%m-%d %H:%M:%S")
         last_location = (float(last_tx["merch_lat"]), float(last_tx["merch_long"]))
 
@@ -144,13 +148,13 @@ def create_fraud_analysis_prompt(
 
             if hours_diff > 0:
                 speed = distance / hours_diff
-                if speed > 500:
+                if speed > 100:
                     travel_info = f" The transaction shows an unusually rapid change in location, indicating a travel speed of {speed:.1f} mph between transactions, which exceeds normal travel speeds."
 
             history_context = (
                 f"Their last transaction was {last_time.strftime('%B %d at %I:%M %p')}, "
                 f"approximately {hours_diff:.1f} hours ago, "
-                f"at coordinates {last_location}."
+                f"which is {distance:.1f} miles from the current location."
             )
 
     # Create context strings for the narrative
@@ -167,19 +171,24 @@ def create_fraud_analysis_prompt(
         if unusual_hour
         else "within their typical active hours"
     )
-    amount_context = (
-        f"{'significantly higher' if amount_deviation > 2 else 'somewhat higher' if amount_deviation > 1.2 else 'typical'} "
-        f"for this category of purchase"
-    )
+
+    if category_context == "unusual":
+        amount_context = "There is no transaction history for this category."
+    else:
+        amount_context = (
+            f"The purchase amount is {'significantly higher' if amount_deviation > 2 else 'somewhat higher' if amount_deviation > 1.1 else 'typical'} "
+            f"for this category of purchase."
+        )
+    # Location Analysis:
+    # The transaction occurred {distance_from_home:.1f} miles from the customer's home location. On average all transactions for this customer happen in a range of {usual_radius:.1f} miles.{travel_info}
 
     # Create the prompt template using PromptTemplate
-    template = """You are an expert fraud detection analyst within a financial institution's security system. Your role is to evaluate transactions for potential fraud, keeping in mind that your assessments will be reviewed by human analysts. Since failing to detect fraud is more costly than false alarms, you should flag any genuinely suspicious patterns while providing clear reasoning.
+    template = """You are an expert fraud detection analyst within a financial institution's security system. Your role is to evaluate transactions for potential fraud, keeping in mind that your assessments will be reviewed by human analysts. You should flag any genuinely suspicious patterns while providing clear reasoning.
+
 
 Transaction Context:
-A {age}-year-old {gender} who works as a {job} has made a purchase of ${amount:.2f} at {merchant} ({category}) on {transaction_time}. This merchant is {merchant_context}, and this category of purchase is {category_context} for them. The transaction occurred {time_context}. The purchase amount is {amount_context}.
+A {age}-year-old {gender_full} who works as a {job} has made a purchase of ${amount:.2f} at {merchant} ({category}) on {transaction_time}. This merchant is {merchant_context}, and this category of purchase is {category_context} for them. The transaction occurred {time_context}. {amount_context}
 
-Location Analysis:
-The transaction occurred {distance_from_home:.1f} miles from the customer's home location, while their usual activity radius is {usual_radius:.1f} miles.{travel_info}
 
 Customer Profile:
 This customer typically shops at: {common_merchants}
@@ -189,14 +198,39 @@ Transaction History:
 {history_context}
 
 Please analyze this transaction for potential fraud indicators. Consider:
-1. The location and travel patterns
+1. The location and travel patterns for age and job
 2. Transaction amount and category
 3. Timing and frequency
-4. Alignment with customer profile
-5. Any unusual patterns or deviations
-6. If the profile is typical for the age, job and gender
+4. Any unusual patterns or deviations
+5. If the transaction is typical for the age, job and gender
 
-Provide your assessment and specifically highlight any suspicious patterns that warrant attention. When you consider the transaction to be fraudulent YOU MUST INCLUDE '!FLAGGED!', such that the transaction can be forwarded to a human. Be concise and limit your answer to maximum 50 words."""
+IMPORTANT: 
+- Never repeat or reference the prompt instructions
+- Never start with phrases like "Text for analysis:" or "Consider the transaction details"
+- Always complete your full analysis in one clear statement
+- Think step by step, but keep responses under 100 words total
+- Only provide GENUINE or FRAUD as conclusion, do not use terms like UNCERTAIN or anything else.
+
+Response Format:
+
+For legitimate transactions:
+[clear analysis in a single complete sentence]
+CONCLUSION: GENUINE
+
+For fraudulent transactions:
+[clear analysis in a single complete sentence]
+CONCLUSION: FRAUD
+
+Example good response for fraud:
+Transaction does not match the typical amount, timing, and location for this customer's profile.
+CONCLUSION: FRAUD
+
+Example good response for genuine transaction:
+Transaction does not match the typical amount, timing, and location for this customer's profile.
+CONCLUSION: GENUINE
+
+Analyze the transcation and based on that analysis conclude if it is fraud or genuine.
+"""
 
     # Create the prompt template
     prompt_template = PromptTemplate(
@@ -222,6 +256,8 @@ Provide your assessment and specifically highlight any suspicious patterns that 
         ],
     )
 
+    gender_full = "female" if profile.gender == "F" else "male"
+
     # Create the input values dictionary
     input_values = {
         "amount": float(transaction.amt),
@@ -243,6 +279,7 @@ Provide your assessment and specifically highlight any suspicious patterns that 
         "history_context": history_context,
         "age": profile.age,
         "gender": profile.gender,
+        "gender_full": gender_full,
         "job": profile.job,
         "usual_radius": profile.usual_radius,
     }
@@ -274,13 +311,14 @@ def detect_fraud(
         }
 
         # Apply strict settings
-        llm.temperature = 0.7
-        llm.max_tokens = 120
+        llm.temperature = 0.8
+        llm.max_tokens = 150
 
         # Create the chain properly using the prompt template
         chain = prompt_template | llm
         result = chain.invoke(input_values)
 
     formatted_prompt = prompt_template.format(**input_values)
-    time.sleep(0.01)
+    # this helps with crashes
+    time.sleep(0.05)
     return {"response": result, "prompt": formatted_prompt}
