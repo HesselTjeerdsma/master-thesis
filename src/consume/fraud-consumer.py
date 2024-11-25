@@ -123,7 +123,7 @@ stats = ThroughputStats(
 
 # Initialize the LlamaCpp language model
 llm = LlamaCpp(
-    model_path="/home/hessel/code/llm-studio/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf",
+    model_path="/root/code/SmolLM2-1.7B-Instruct-Q4_K_M.gguf",
     temperature=0.6,
     max_tokens=10000,
     n_ctx=4096,
@@ -270,11 +270,11 @@ async def setup(logger: Logger, context: ContextRepo) -> None:
     try:
         logger.info("Creating Message DBs")
         DuckDBModel.initialize_db(
-            "/home/hessel/code/master-thesis/databases/fraud-prod.db"
+            "~/code/master-thesis/databases/fraud-cloud.db"
         )
 
         run_last = Run.last()
-        if run_last.status != "completed":
+        if getattr(run_last, "status", "completed") != "completed":
             run = run_last
             print("Continuing with last Run.")
         else:
