@@ -311,7 +311,7 @@ def detect_fraud(
         }
 
         # Apply strict settings
-        llm.temperature = 0.8
+        llm.temperature = 0.6
         llm.max_tokens = 150
 
         # Create the chain properly using the prompt template

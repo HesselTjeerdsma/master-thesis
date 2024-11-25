@@ -121,9 +121,11 @@ stats = ThroughputStats(
     start_time=time.time(), message_count=0, last_log_time=time.time(), lock=Lock()
 )
 
+model_path = "/home/hessel/code/lm-studio/lmstudio-community/gemma-2-9b-it-GGUF/gemma-2-9b-it-Q4_K_M.gguf"
+
 # Initialize the LlamaCpp language model
 llm = LlamaCpp(
-    model_path="/home/hessel/code/llm-studio/TheBloke/Mixtral-8x7B-Instruct-v0.1-GGUF/mixtral-8x7b-instruct-v0.1.Q3_K_M.gguf",
+    model_path=model_path,
     temperature=0.6,
     max_tokens=10000,
     n_ctx=4096,
@@ -278,12 +280,13 @@ async def setup(logger: Logger, context: ContextRepo) -> None:
             run = run_last
             print("Continuing with last Run.")
         else:
-            print("Starting new Run!")
+            model_name = model_path.split("/")[-1]
             run = Run.start(
-                model_name="Phi-3.5-mini-instruct-Q8_0",
+                model_name=model_name,
                 environment="production",
                 metadata=get_system_config(app, llm),
             )
+            print(f"Starting new Run! with run_id {run.id} and model {model_name} ")
 
         message_count = len(run.get_messages())
 
