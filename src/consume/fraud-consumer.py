@@ -271,9 +271,7 @@ async def setup(logger: Logger, context: ContextRepo) -> None:
     """Initialize the application on startup."""
     try:
         logger.info("Creating Message DBs")
-        DuckDBModel.initialize_db(
-            "/home/hessel/code/master-thesis/databases/fraud-prod.db"
-        )
+        DuckDBModel.initialize_db("~/code/master-thesis/databases/fraud-prod.db")
 
         run_last = Run.last()
         if run_last.status != "completed":
