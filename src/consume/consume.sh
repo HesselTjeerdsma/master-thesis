@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONSUMER_PATTERN="/usr/bin/python3 /home/hessel/.local/bin/faststream run fraud-consumer:app"
+CONSUMER_PATTERN="/usr/bin/python3 /usr/local/bin/faststream run fraud-consumer:app"
 CONSUMER_PID=""
 
 cleanup() {
@@ -34,7 +34,7 @@ trap cleanup SIGINT
 
 while true; do
     echo "$(date): Starting faststream consumer"
-    /usr/bin/python3 /home/hessel/.local/bin/faststream run fraud-consumer:app > >(tee /tmp/fraud_consumer.log) &
+    /usr/bin/python3 /usr/local/bin/faststream run fraud-consumer:app > >(tee /tmp/fraud_consumer.log) &
     CONSUMER_PID=$!
     
     LAST_ACTIVITY=$(date +%s)

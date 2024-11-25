@@ -274,7 +274,7 @@ async def setup(logger: Logger, context: ContextRepo) -> None:
         DuckDBModel.initialize_db("~/code/master-thesis/databases/fraud-prod.db")
 
         run_last = Run.last()
-        if run_last.status != "completed":
+        if getattr(run_last, "status", "completed") != "completed":
             run = run_last
             print("Continuing with last Run.")
         else:
