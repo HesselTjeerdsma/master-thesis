@@ -1,6 +1,6 @@
 import csv
-from kafka import KafkaProducer
-from kafka.errors import KafkaError
+from confluent_kafka import Producer
+from confluent_kafka.error import KafkaError
 import json
 import time
 import argparse
@@ -40,14 +40,12 @@ class RedisTransactionManager:
         return "dataset_start_time"
 
     def set_dataset_start_time(self, start_time: datetime) -> None:
-        """Set the dataset's start time for relative history calculations"""
         self.dataset_start_time = start_time
         self.redis.set(
             self._get_dataset_start_key(), start_time.strftime("%Y-%m-%d %H:%M:%S")
         )
 
     def _get_reference_time(self, transaction_time: datetime) -> datetime:
-        """Get the reference time for calculating the history window"""
         if not self.dataset_start_time:
             start_time_str = self.redis.get(self._get_dataset_start_key())
             if start_time_str:
@@ -61,7 +59,6 @@ class RedisTransactionManager:
         cc_num = transaction["cc_num"]
         card_key = self._get_card_key(cc_num)
 
-        # Ensure timestamp is in correct string format
         timestamp = transaction["trans_date_trans_time"]
         if isinstance(timestamp, str):
             trans_datetime = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
@@ -72,7 +69,6 @@ class RedisTransactionManager:
         else:
             raise ValueError("Invalid timestamp format")
 
-        # Create history entry with location data
         history_entry = {
             "timestamp": timestamp,
             "amount": float(transaction["amt"]),
@@ -90,9 +86,7 @@ class RedisTransactionManager:
 
             history = self.get_transaction_history(
                 cc_num, reference_time=trans_datetime
-            )[
-                1:
-            ]  # do not add current transaction
+            )[1:]
 
             enriched_transaction = transaction.copy()
             enriched_transaction["recent_transactions"] = history
@@ -152,22 +146,24 @@ class TransactionSelector:
         return sum(len(trans) for trans in self.transactions.values())
 
     def get_fraud_count(self) -> int:
-        """
-        Returns the total number of fraudulent transactions across all selected cards.
-
-        Returns:
-            int: Count of fraudulent transactions
-        """
         fraud_count = 0
         for transactions in self.transactions.values():
             fraud_count += sum(1 for trans in transactions if trans["is_fraud"])
         return fraud_count
 
 
+def delivery_report(err, msg):
+    if err is not None:
+        print(f"Message delivery failed: {err}")
+    else:
+        pass
+
+
 def check_kafka_connection(bootstrap_servers):
     try:
-        producer = KafkaProducer(bootstrap_servers=bootstrap_servers)
-        producer.close()
+        conf = {"bootstrap.servers": bootstrap_servers}
+        producer = Producer(conf)
+        producer.flush()
         print("Successfully connected to Kafka")
         return True
     except KafkaError as e:
@@ -190,7 +186,7 @@ def check_redis_connection(host: str, port: int) -> bool:
 def publish_messages(
     csv_file: str,
     topic_name: str,
-    bootstrap_servers: List[str],
+    bootstrap_servers: str,
     messages_per_second: float,
     redis_host: str,
     redis_port: int,
@@ -214,13 +210,9 @@ def publish_messages(
         },
     )
 
-    producer = KafkaProducer(
-        bootstrap_servers=bootstrap_servers,
-        key_serializer=str.encode,
-        value_serializer=lambda v: json.dumps(v, default=str).encode("utf-8"),
-    )
+    conf = {"bootstrap.servers": bootstrap_servers, "on_delivery": delivery_report}
+    producer = Producer(conf)
 
-    # First pass: find the date range in the data
     print("Analyzing transaction date range...")
     min_date = None
     max_date = None
@@ -245,14 +237,12 @@ def publish_messages(
 
     print(f"Transaction date range: {min_date} to {max_date}")
 
-    # Set simulation timeframe based on the earliest date
     simulation_start = min_date + timedelta(days=(history_timeframe_days))
     simulation_end = simulation_start + timedelta(days=(simulation_timeframe_days))
 
     print(f"Using history period: {min_date} to {simulation_start}")
     print(f"Using simulation period: {simulation_start} to {simulation_end}")
 
-    # Process transactions
     transactions_to_publish = []
     with open(csv_file, "r") as file:
         csv_reader = csv.DictReader(file)
@@ -273,7 +263,6 @@ def publish_messages(
 
                 if trans_date <= simulation_end:
                     if trans_date < simulation_start:
-                        # Only add to Redis if it's a card we're interested in
                         if transaction_selector.can_add_card(cc_num):
                             redis_manager.add_transaction(transaction_dict)
                     else:
@@ -297,7 +286,6 @@ def publish_messages(
                 print(f"Unexpected error: {e}")
                 continue
 
-    # Get statistics
     total_transactions = transaction_selector.get_transaction_count()
     total_fraud = transaction_selector.get_fraud_count()
 
@@ -312,13 +300,11 @@ def publish_messages(
     print(f"Total transactions: {total_transactions}")
     print(f"Total Fraud: {total_fraud}")
 
-    # Publish transactions
     published = 0
     pub_fraud = 0
     last_status_time = time.time()
     status_interval = 5
 
-    # Sort all transactions by date
     all_transactions = []
     for transactions in transaction_selector.transactions.values():
         all_transactions.extend(transactions)
@@ -326,26 +312,29 @@ def publish_messages(
 
     print(f"\nProcessing Statistics:")
     print(f"Total transactions to publish: {len(all_transactions)}")
-    # print(transaction_selector.selected_cards)
 
-    # Publish transactions
     for transaction in all_transactions:
         try:
             enriched_message = redis_manager.add_transaction(transaction)
-            producer.send(topic_name, key=transaction["cc_num"], value=enriched_message)
+            producer.produce(
+                topic_name,
+                key=transaction["cc_num"],
+                value=json.dumps(enriched_message, default=str),
+                callback=delivery_report,
+            )
 
             if transaction["is_fraud"]:
                 pub_fraud += 1
 
             published += 1
 
-            # Print status periodically
             current_time = time.time()
             if current_time - last_status_time >= status_interval:
                 print(f"\nProgress: Published {published} messages")
                 last_status_time = current_time
 
             time.sleep(1 / messages_per_second)
+            producer.poll(0)
 
         except Exception as e:
             print(f"Unexpected error during publishing: {e}")
@@ -408,7 +397,6 @@ if __name__ == "__main__":
         print("Error: Maximum number of cards must be at least 1")
         sys.exit(1)
 
-    # Check both Kafka and Redis connections before starting
     services_ok = True
 
     if not check_kafka_connection(args.bootstrap_servers):
@@ -430,7 +418,7 @@ if __name__ == "__main__":
     publish_messages(
         args.csv_file,
         args.topic_name,
-        [args.bootstrap_servers],
+        args.bootstrap_servers,
         args.rate,
         args.redis_host,
         args.redis_port,
