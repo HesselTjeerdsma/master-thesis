@@ -12,6 +12,17 @@ from dataclasses import dataclass
 from typing import Any, Optional, Tuple
 from collections import Counter
 
+from dataclasses import dataclass
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+from sklearn.preprocessing import LabelEncoder
+from sklearn.svm import SVC
+import pandas as pd
+import numpy as np
+from geopy.distance import geodesic
+from dateutil.relativedelta import relativedelta
+from collections import Counter
+
 sys.path.append("../")
 from models.transaction import TransactionModel
 
@@ -322,3 +333,123 @@ def detect_fraud(
     # this helps with crashes
     time.sleep(0.05)
     return {"response": result, "prompt": formatted_prompt}
+
+
+def prepare_transaction_features(
+    transaction, profile: Optional[CardholderProfile] = None
+) -> pd.DataFrame:
+    """Prepare transaction features for model input"""
+    # Create a single row dataframe with the same features as training data
+    df = pd.DataFrame(
+        {
+            "merchant": [transaction.merchant],
+            "category": [transaction.category],
+            "amt": [float(transaction.amt)],
+            "gender": [transaction.gender],
+            "lat": [float(transaction.lat)],
+            "long": [float(transaction.long)],
+            "city_pop": [transaction.city_pop],
+            "job": [transaction.job],
+            "unix_time": [int(transaction.trans_date_trans_time.timestamp())],
+            "merch_lat": [float(transaction.merch_lat)],
+            "merch_long": [float(transaction.merch_long)],
+        }
+    )
+
+    # Add derived features if profile is available
+    if profile:
+        current_location = (float(transaction.merch_lat), float(transaction.merch_long))
+        df["distance_from_home"] = [
+            geodesic(profile.home_location, current_location).miles
+        ]
+        df["amount_typical"] = [
+            (
+                float(transaction.amt)
+                / profile.typical_amounts.get(
+                    transaction.category, float(transaction.amt)
+                )
+                if transaction.category in profile.typical_amounts
+                else 1.0
+            )
+        ]
+        df["is_common_merchant"] = [
+            1 if transaction.merchant in profile.common_merchants else 0
+        ]
+        df["is_common_category"] = [
+            1 if transaction.category in profile.common_categories else 0
+        ]
+        df["is_active_hour"] = [
+            1 if transaction.trans_date_trans_time.hour in profile.active_hours else 0
+        ]
+
+    return df
+
+
+def detect_fraud_conv(
+    transaction,
+    model_path: Optional[str] = None,
+    transaction_history: List[Dict] = None,
+) -> dict:
+    """
+    Detect fraud using conventional ML approach
+
+    Args:
+        transaction: Transaction object with attributes matching the training data
+        model_path: Optional path to saved model file
+        transaction_history: Optional list of previous transactions
+
+    Returns:
+        dict containing response and analysis
+    """
+    try:
+        # Create profile from transaction history if available
+        profile = None
+        if transaction_history:
+            profile = CardholderProfile.from_transaction(
+                transaction, transaction_history
+            )
+
+        # Prepare features
+        features_df = prepare_transaction_features(transaction, profile)
+
+        # Encode categorical variables
+        encoders = {}
+        for col in ["merchant", "category", "gender", "job"]:
+            encoders[col] = LabelEncoder()
+            features_df[col] = encoders[col].fit_transform(features_df[col])
+
+        # Create and train model if no saved model provided
+        if model_path is None:
+            model = SVC(probability=True)
+            model.fit(features_df, [0])  # Fit with dummy target
+        else:
+            # Load model from path if provided
+            # Implementation would depend on how model is saved
+            pass
+
+        # Get prediction probability
+        fraud_prob = model.predict_proba(features_df)[0][1]
+
+        # Generate analysis based on prediction
+        if fraud_prob > 0.5:
+            conclusion = "FRAUD"
+            analysis = "Transaction shows unusual patterns in location, amount, or timing compared to typical behavior."
+        else:
+            conclusion = "GENUINE"
+            analysis = (
+                "Transaction matches expected patterns and typical customer behavior."
+            )
+
+        response = f"{analysis}\nCONCLUSION: {conclusion}"
+
+        # Format output to match original function
+        return {
+            "response": response,
+            "prompt": f"Analysis of transaction {transaction.trans_num} using conventional ML model",
+        }
+
+    except Exception as e:
+        return {
+            "response": f"Error analyzing transaction: {str(e)}\nCONCLUSION: ERROR",
+            "prompt": "Error occurred during analysis",
+        }
