@@ -1,0 +1,1 @@
+{"LOCAL_MODEL_NAME": "llama-3.1-70b-instruct", "LOCAL_MODEL_BASE_URL": "https://api.scaleway.ai/aad43137-8aab-4869-a46d-26760fafaec8/v1", "LOCAL_MODEL_API_KEY": "2c393978-62ac-4190-ae56-93cbe4e3561c", "LOCAL_MODEL_FORMAT": "json", "USE_LOCAL_MODEL": "YES", "USE_AZURE_OPENAI": "NO"}
