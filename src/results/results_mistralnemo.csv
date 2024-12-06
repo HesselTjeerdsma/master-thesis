@@ -1,4 +1,4 @@
-,Timestamp,Prompt,Response,Metadata
+,Timestamp,Prompt,MistralNemoResponse,Metadata
 0,2024-11-24 15:34:56.231243,"You are an expert fraud detection analyst within a financial institution's security system. Your role is to evaluate transactions for potential fraud, keeping in mind that your assessments will be reviewed by human analysts. You should flag any genuinely suspicious patterns while providing clear reasoning.
 
 
