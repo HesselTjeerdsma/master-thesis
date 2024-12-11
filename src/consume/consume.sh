@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CONSUMER_PATTERN="/usr/bin/python3 /usr/local/bin/faststream run fraud-consumer:app"
+CONSUMER_PATTERN="/home/hessel/miniconda3/envs/llamacpp/bin/python3 /home/hessel/miniconda3/envs/llamacpp/bin/faststream run fraud-consumer:app"
 CONSUMER_PID=""
 
 cleanup() {

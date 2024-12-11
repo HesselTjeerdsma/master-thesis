@@ -121,7 +121,7 @@ stats = ThroughputStats(
     start_time=time.time(), message_count=0, last_log_time=time.time(), lock=Lock()
 )
 
-model_path = "/home/hessel/code/lm-studio/lmstudio-community/gemma-2-9b-it-GGUF/gemma-2-9b-it-Q4_K_M.gguf"
+model_path = "/home/hessel/code/lm-studio/MaziyarPanahi/Qwen2.5-7B-Instruct-GGUF/Qwen2.5-7B-Instruct.Q4_K_M.gguf"
 
 # Initialize the LlamaCpp language model
 llm = LlamaCpp(
