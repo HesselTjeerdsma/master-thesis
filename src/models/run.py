@@ -90,7 +90,6 @@ class Run(DuckDBModel):
                 {
                     "cpu_energy": msg.cpu_usage,
                     "gpu_energy": msg.gpu_usage if msg.gpu_usage is not None else 0,
-                    "disk_energy": msg.disk_usage,
                     "message_num": i + 1,
                     "timestamp": msg.created_at,
                 }
@@ -240,3 +239,101 @@ class Run(DuckDBModel):
             )
 
         return pd.DataFrame(conversation_data)
+
+    def get_power_stats_df(self) -> pd.DataFrame:
+        """
+        Get summary statistics of power and energy usage for this run as a DataFrame.
+
+        Returns:
+            pd.DataFrame: DataFrame containing energy and power statistics for CPU, GPU, and Disk
+                with columns for mean, max, total energy, and percentage of total energy.
+                If the run is completed, also includes average power consumption.
+
+        Raises:
+            ValueError: If no messages are found for this run
+        """
+        messages = self.get_messages()
+        if not messages:
+            raise ValueError(f"No messages found for run {self.id}")
+
+        # Convert messages to DataFrame for analysis
+        data = pd.DataFrame(
+            [
+                {
+                    "cpu_energy": msg.cpu_usage,
+                    "gpu_energy": msg.gpu_usage if msg.gpu_usage is not None else 0,
+                    "disk_energy": msg.disk_usage,
+                    "timestamp": msg.created_at,
+                }
+                for msg in messages
+            ]
+        )
+
+        # Calculate total energy for percentage calculations
+        total_system_energy = (
+            data["cpu_energy"].sum()
+            + data["gpu_energy"].sum()
+            + data["disk_energy"].sum()
+        )
+
+        # Calculate statistics for each component
+        stats_dict = {
+            "Component": [
+                "CPU",
+                "GPU",
+            ],
+            "Mean Energy (J)": [
+                data["cpu_energy"].mean(),
+                data["gpu_energy"].mean(),
+            ],
+            "Max Energy (J)": [
+                data["cpu_energy"].max(),
+                data["gpu_energy"].max(),
+            ],
+            "Total Energy (J)": [
+                data["cpu_energy"].sum(),
+                data["gpu_energy"].sum(),
+            ],
+            "Energy Percentage (%)": [
+                (data["cpu_energy"].sum() / total_system_energy) * 100,
+                (data["gpu_energy"].sum() / total_system_energy) * 100,
+            ],
+        }
+
+        # Calculate duration and average power if run is completed
+        if self.end_time is not None:
+            duration = (self.end_time - self.start_time).total_seconds()
+            stats_dict["Average Power (W)"] = [
+                data["cpu_energy"].sum() / duration,
+                data["gpu_energy"].sum() / duration,
+            ]
+
+        # Create DataFrame with all statistics
+        stats_df = pd.DataFrame(stats_dict)
+
+        # Add system total row
+        total_row = pd.DataFrame(
+            {
+                "Component": ["System Total"],
+                "Mean Energy (J)": [
+                    data[["cpu_energy", "gpu_energy"]].sum(axis=1).mean()
+                ],
+                "Max Energy (J)": [
+                    data[["cpu_energy", "gpu_energy"]].sum(axis=1).max()
+                ],
+                "Total Energy (J)": [total_system_energy],
+                "Energy Percentage (%)": [100.0],
+            }
+        )
+
+        # Add average power for system total if run is completed
+        if self.end_time is not None:
+            total_row["Average Power (W)"] = [total_system_energy / duration]
+
+        stats_df = pd.concat([stats_df, total_row], ignore_index=True)
+
+        # Round numeric columns to 2 decimal places
+        numeric_columns = stats_df.select_dtypes(include=["float64"]).columns
+        stats_df[numeric_columns] = stats_df[numeric_columns].round(2)
+
+        return stats_df
