@@ -109,11 +109,6 @@ class Run(DuckDBModel):
                 "max": data["gpu_energy"].max(),
                 "total": data["gpu_energy"].sum(),
             },
-            "Disk": {
-                "mean": data["disk_energy"].mean(),
-                "max": data["disk_energy"].max(),
-                "total": data["disk_energy"].sum(),
-            },
         }
 
         # Create figure with subplots
@@ -126,7 +121,6 @@ class Run(DuckDBModel):
         ax1 = fig.add_subplot(gs[0, :])
         ax1.plot(data["message_num"], data["cpu_energy"], label="CPU", marker="o")
         ax1.plot(data["message_num"], data["gpu_energy"], label="GPU", marker="o")
-        ax1.plot(data["message_num"], data["disk_energy"], label="Disk", marker="o")
         ax1.set_xlabel("Message Number")
         ax1.set_ylabel("Energy Usage (J)")
         ax1.set_title(f"Energy Usage Over Time - Run {self.id} ({self.model_name})")
@@ -135,7 +129,7 @@ class Run(DuckDBModel):
 
         # 2. Average energy usage bar chart
         ax2 = fig.add_subplot(gs[1, 0])
-        components = ["CPU", "GPU", "Disk"]
+        components = ["CPU", "GPU"]
         means = [stats[comp]["mean"] for comp in components]
         bars = ax2.bar(components, means)
         ax2.set_ylabel("Average Energy Usage (J)")
@@ -191,7 +185,6 @@ class Run(DuckDBModel):
             f"Messages: {len(messages)} | "
             f"CPU: Mean={stats['CPU']['mean']:.2f}J, Max={stats['CPU']['max']:.2f}J | "
             f"GPU: Mean={stats['GPU']['mean']:.2f}J, Max={stats['GPU']['max']:.2f}J | "
-            f"Disk: Mean={stats['Disk']['mean']:.2f}J, Max={stats['Disk']['max']:.2f}J | "
             f"Total Energy: {total_energy:.2f}J"
         )
 
@@ -227,7 +220,7 @@ class Run(DuckDBModel):
         # Create DataFrame with conversation history and energy metrics
         conversation_data = []
         for i, msg in enumerate(messages, 1):
-            total_energy = msg.cpu_usage + (msg.gpu_usage or 0) + msg.disk_usage
+            total_energy = msg.cpu_usage + (msg.gpu_usage or 0)
 
             conversation_data.append(
                 {
@@ -245,7 +238,7 @@ class Run(DuckDBModel):
         Get summary statistics of power and energy usage for this run as a DataFrame.
 
         Returns:
-            pd.DataFrame: DataFrame containing energy and power statistics for CPU, GPU, and Disk
+            pd.DataFrame: DataFrame containing energy and power statistics for CPU, GPU
                 with columns for mean, max, total energy, and percentage of total energy.
                 If the run is completed, also includes average power consumption.
 
@@ -262,7 +255,6 @@ class Run(DuckDBModel):
                 {
                     "cpu_energy": msg.cpu_usage,
                     "gpu_energy": msg.gpu_usage if msg.gpu_usage is not None else 0,
-                    "disk_energy": msg.disk_usage,
                     "timestamp": msg.created_at,
                 }
                 for msg in messages
@@ -270,11 +262,7 @@ class Run(DuckDBModel):
         )
 
         # Calculate total energy for percentage calculations
-        total_system_energy = (
-            data["cpu_energy"].sum()
-            + data["gpu_energy"].sum()
-            + data["disk_energy"].sum()
-        )
+        total_system_energy = data["cpu_energy"].sum() + data["gpu_energy"].sum()
 
         # Calculate statistics for each component
         stats_dict = {
