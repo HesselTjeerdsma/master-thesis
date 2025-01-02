@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Dict, List
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,6 +41,10 @@ class Run(DuckDBModel):
         run.save()
         return run
 
+    def formatted_name(self):
+        xs = self.model_name.split("-")
+        return "-".join(xs[0:3]).split(".Q4_K_M.gguf")[0]
+
     def end(self, status: str = "completed") -> None:
         """
         End the current run with the specified status and current timestamp.
@@ -69,6 +73,16 @@ class Run(DuckDBModel):
             List[Message]: List of Message objects for this run ordered by ID
         """
         return Message.list_all_filtered("run_id", self.id)
+
+    def get_end_time(self) -> Optional[datetime]:
+        """
+        Get the timestamp of the last message in this run.
+
+        Returns:
+            datetime | None: Timestamp of the last message or None if no messages exist
+        """
+        messages = self.get_messages()
+        return max(msg.created_at for msg in messages) + timedelta(hours=1)
 
     def plot_power_usage(self, save_path: Optional[str] = None) -> None:
         """
@@ -161,7 +175,9 @@ class Run(DuckDBModel):
 
         # Add summary statistics and run information as text in the bottom row
         duration = (
-            (self.end_time - self.start_time).total_seconds() if self.end_time else None
+            (self.get_end_time() - self.start_time).total_seconds()
+            if self.get_end_time()
+            else None
         )
         duration_text = (
             f"Duration: {duration:.1f}s" if duration else "Duration: Running"
@@ -290,7 +306,7 @@ class Run(DuckDBModel):
 
         # Calculate duration and average power if run is completed
         if self.end_time is not None:
-            duration = (self.end_time - self.start_time).total_seconds()
+            duration = (self.get_end_time() - self.start_time).total_seconds()
             stats_dict["Average Power (W)"] = [
                 data["cpu_energy"].sum() / duration,
                 data["gpu_energy"].sum() / duration,
@@ -315,7 +331,7 @@ class Run(DuckDBModel):
         )
 
         # Add average power for system total if run is completed
-        if self.end_time is not None:
+        if self.get_end_time() is not None:
             total_row["Average Power (W)"] = [total_system_energy / duration]
 
         stats_df = pd.concat([stats_df, total_row], ignore_index=True)
