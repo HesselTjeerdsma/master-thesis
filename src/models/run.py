@@ -44,8 +44,15 @@ class Run(DuckDBModel):
     def formatted_name(self):
         xs = self.model_name.split("-")
         name = "-".join(xs[0:3]).split(".Q4_K_M.gguf")[0]
-        return f"{self.id}: {name}"
 
+        if name == "rf":
+            name = "Random Forest"
+        elif name == "svm":
+            name = "Support Vector Machine"
+        else:
+            name = name
+
+        return f"{self.id}: {name}"
 
     def end(self, status: str = "completed") -> None:
         """
