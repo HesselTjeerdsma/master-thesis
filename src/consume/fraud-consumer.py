@@ -20,11 +20,12 @@ sys.path.append("../")
 from models.transaction import TransactionModel
 from models.message import Message
 from models.run import Run
-from classifiers.fraud_detect import detect_fraud
+from classifiers.fraud_detect import detect_fraud, detect_fraud_conv
 from models.duck_basemodel import DuckDBModel
 from tools.EnergyMeter.energy_meter import EnergyMeter
 from tools.SystemInformation.system_information import get_system_config
 from langchain_community.llms import LlamaCpp
+from classifiers.fraud_detect_conv import train_fraud_detection
 
 
 @dataclass
@@ -121,22 +122,36 @@ stats = ThroughputStats(
     start_time=time.time(), message_count=0, last_log_time=time.time(), lock=Lock()
 )
 
-model_path = "/home/hessel/code/lm-studio/MaziyarPanahi/Qwen2.5-7B-Instruct-GGUF/Qwen2.5-7B-Instruct.Q4_K_M.gguf"
+conv_model = True
 
-# Initialize the LlamaCpp language model
-llm = LlamaCpp(
-    model_path=model_path,
-    temperature=0.6,
-    max_tokens=10000,
-    n_ctx=4096,
-    n_batch=1024,
-    n_gpu_layers=35,
-    f16_kv=True,
-    verbose=False,
-    use_mlock=True,
-    use_mmap=False,
-    n_threads=6,
-)
+if not conv_model:
+    model_path = "/home/hessel/code/lm-studio/MaziyarPanahi/Qwen2.5-7B-Instruct-GGUF/Qwen2.5-7B-Instruct.Q4_K_M.gguf"
+
+    # Initialize the LlamaCpp language model
+    llm = LlamaCpp(
+        model_path=model_path,
+        temperature=0.6,
+        max_tokens=10000,
+        n_ctx=4096,
+        n_batch=1024,
+        n_gpu_layers=35,
+        f16_kv=True,
+        verbose=False,
+        use_mlock=True,
+        use_mmap=False,
+        n_threads=6,
+    )
+else:
+    print("Training Conv Models at start")
+    model_type = "svm"
+    # Example usage with custom weights:
+    models, encoders, scaler, energy = train_fraud_detection(
+        train_path="/home/hessel/code/fraudTrain.csv",
+        test_path="/home/hessel/code/fraudTest.csv",
+        fraud_ratio=0.62,
+        sample_size=100000,
+        cost_weights={"fp": 1, "fn": 10},  # Higher penalty for false negatives
+    )
 
 
 def calculate_throughput(logger: Logger) -> None:
@@ -236,13 +251,29 @@ async def consume_transaction(
     logger.debug(f"Transaction model type: {type(transaction)}")
     logger.debug(f"Prepared history entries: {len(processed_history)}")
 
-    # Perform fraud detection with transaction model and processed history
-    response = detect_fraud(
-        transaction=transaction,  # Keep as TransactionModel
-        llm=llm,
-        transaction_history=processed_history,
-    )
+    if not conv_model:
+        # Perform fraud detection with transaction model and processed history
+        response = detect_fraud(
+            transaction=transaction,  # Keep as TransactionModel
+            llm=llm,
+            transaction_history=processed_history,
+        )
 
+    else:
+        # Perform fraud detection with transaction model and processed history
+        # Initialize models dictionary with both models
+        models_in = {
+            "svm": models["svm"],
+            "rf": models["rf"],
+            "encoders": encoders,
+            "scaler": scaler,
+        }
+        response = detect_fraud_conv(
+            transaction=transaction,
+            ml_models=models_in,
+            model_type=model_type,
+            transaction_history=processed_history,
+        )
     # End energy measurement
     meter.end()
 
@@ -278,11 +309,14 @@ async def setup(logger: Logger, context: ContextRepo) -> None:
             run = run_last
             print("Continuing with last Run.")
         else:
-            model_name = model_path.split("/")[-1]
+            if not conv_model:
+                model_name = model_path.split("/")[-1]
+                metadata = (get_system_config(app, llm),)
+            else:
+                model_name = model_type
+                metadata = {}
             run = Run.start(
-                model_name=model_name,
-                environment="production",
-                metadata=get_system_config(app, llm),
+                model_name=model_name, environment="production", metadata=metadata
             )
             print(f"Starting new Run! with run_id {run.id} and model {model_name} ")
 

@@ -386,70 +386,141 @@ def prepare_transaction_features(
 
 
 def detect_fraud_conv(
-    transaction,
-    model_path: Optional[str] = None,
+    transaction: TransactionModel,
+    ml_models: dict,
     transaction_history: List[Dict] = None,
+    model_type: str = "svm",
 ) -> dict:
     """
     Detect fraud using conventional ML approach
 
     Args:
         transaction: Transaction object with attributes matching the training data
-        model_path: Optional path to saved model file
+        ml_models: Dictionary containing models and preprocessing components:
+            - 'svm': SVM model
+            - 'rf': Random Forest model
+            - 'encoders': Dictionary of label encoders
+            - 'scaler': StandardScaler instance
         transaction_history: Optional list of previous transactions
+        model_type: Type of model to use ('svm' or 'rf')
 
     Returns:
-        dict containing response and analysis
+        dict containing response and analysis from the model
     """
-    try:
-        # Create profile from transaction history if available
-        profile = None
-        if transaction_history:
-            profile = CardholderProfile.from_transaction(
-                transaction, transaction_history
-            )
+    if model_type not in ["svm", "rf"]:
+        raise ValueError("model_type must be 'svm' or 'rf'")
 
-        # Prepare features
-        features_df = prepare_transaction_features(transaction, profile)
+    if model_type not in ml_models:
+        raise ValueError(f"{model_type} model not provided in ml_models dictionary")
 
-        # Encode categorical variables
-        encoders = {}
-        for col in ["merchant", "category", "gender", "job"]:
-            encoders[col] = LabelEncoder()
-            features_df[col] = encoders[col].fit_transform(features_df[col])
-
-        # Create and train model if no saved model provided
-        if model_path is None:
-            model = SVC(probability=True)
-            model.fit(features_df, [0])  # Fit with dummy target
-        else:
-            # Load model from path if provided
-            # Implementation would depend on how model is saved
-            pass
-
-        # Get prediction probability
-        fraud_prob = model.predict_proba(features_df)[0][1]
-
-        # Generate analysis based on prediction
-        if fraud_prob > 0.5:
-            conclusion = "FRAUD"
-            analysis = "Transaction shows unusual patterns in location, amount, or timing compared to typical behavior."
-        else:
-            conclusion = "GENUINE"
-            analysis = (
-                "Transaction matches expected patterns and typical customer behavior."
-            )
-
-        response = f"{analysis}\nCONCLUSION: {conclusion}"
-
-        # Format output to match original function
-        return {
-            "response": response,
-            "prompt": f"Analysis of transaction {transaction.trans_num} using conventional ML model",
+    # Create DataFrame with single transaction
+    features_df = pd.DataFrame(
+        {
+            "merchant": [transaction.merchant],
+            "category": [transaction.category],
+            "amt": [float(transaction.amt)],
+            "gender": [transaction.gender],
+            "job": [transaction.job],
+            "lat": [float(transaction.lat)],
+            "long": [float(transaction.long)],
+            "city_pop": [float(transaction.city_pop)],
+            "unix_time": [int(transaction.trans_date_trans_time.timestamp())],
+            "merch_lat": [float(transaction.merch_lat)],
+            "merch_long": [float(transaction.merch_long)],
         }
+    )
 
-    except Exception as e:
-        return {
-            "response": f"Error analyzing transaction: {str(e)}\nCONCLUSION: ERROR",
-            "prompt": "Error occurred during analysis",
-        }
+    # Extract time features
+    trans_datetime = transaction.trans_date_trans_time
+    features_df["trans_hour"] = [float(trans_datetime.hour)]
+    features_df["trans_day"] = [float(trans_datetime.day)]
+    features_df["trans_month"] = [float(trans_datetime.month)]
+    features_df["trans_day_of_week"] = [float(trans_datetime.weekday())]
+    features_df["is_weekend"] = [float(trans_datetime.weekday() in [5, 6])]
+
+    # Calculate age features
+    if isinstance(transaction.dob, datetime):
+        dob_datetime = transaction.dob
+    else:
+        # Convert date to datetime at midnight
+        dob_datetime = datetime.combine(transaction.dob, datetime.min.time())
+    age = (trans_datetime - dob_datetime).days / 365.25
+    features_df["age"] = [float(age)]
+    features_df["age_decade"] = [float(age // 10 * 10)]
+
+    # Get preprocessing components and selected model
+    encoders = ml_models["encoders"]
+    scaler = ml_models["scaler"]
+    model = ml_models[model_type]
+
+    # Encode categorical columns
+    categorical_cols = ["merchant", "category", "gender", "job"]
+    for col in categorical_cols:
+        features_df[col] = encoders[col].transform(features_df[col])
+
+    # Scale numerical columns
+    numerical_cols = [
+        "amt",
+        "lat",
+        "long",
+        "city_pop",
+        "unix_time",
+        "merch_lat",
+        "merch_long",
+        "trans_hour",
+        "trans_day",
+        "trans_month",
+        "trans_day_of_week",
+        "is_weekend",
+        "age",
+        "age_decade",
+    ]
+
+    features_df[numerical_cols] = scaler.transform(features_df[numerical_cols])
+
+    # Convert to numpy array
+    X = features_df.to_numpy()
+
+    # Get prediction
+    fraud_prob = model.predict_proba(X)[0, 1]
+    is_fraud = fraud_prob > 0.5
+
+    # Prepare analysis
+    analysis = []
+
+    # Add confidence-based analysis
+    if fraud_prob > 0.7:
+        analysis.append("High confidence fraud detection")
+    elif fraud_prob > 0.5:
+        analysis.append("Moderate indication of fraudulent activity")
+    elif fraud_prob < 0.3:
+        analysis.append("Transaction appears normal")
+    else:
+        analysis.append("Some unusual patterns detected but likely legitimate")
+
+    analysis.append(f"{model_type.upper()} fraud probability: {fraud_prob:.2%}")
+
+    # Add location-based analysis
+    current_location = (float(transaction.merch_lat), float(transaction.merch_long))
+    home_location = (float(transaction.lat), float(transaction.long))
+    distance = geodesic(home_location, current_location).miles
+    if distance > 100:  # Use fixed threshold since we don't have profile history
+        analysis.append(
+            f"Transaction location ({distance:.1f} miles) from home address"
+        )
+    profile = CardholderProfile.from_transaction(transaction, transaction_history or [])
+
+    # Create prompt template and input values
+    prompt_template, input_values = create_fraud_analysis_prompt(
+        transaction=transaction, profile=profile, history=transaction_history
+    )
+
+    formatted_prompt = prompt_template.format(**input_values)
+
+    return {
+        "response": "CONLCUSION: FRAUD" if is_fraud else "CONCLUSION: GENUINE",
+        "confidence": fraud_prob,
+        "analysis": " | ".join(analysis),
+        "model_scores": {f"{model_type}_probability": fraud_prob},
+        "prompt": formatted_prompt,  # Same prompt as LLM but not used
+    }
